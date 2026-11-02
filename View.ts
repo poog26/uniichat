@@ -68,8 +68,9 @@ type ChatSet = {
 };
 
 type ServerSays = {
-  build?    : string;
-  site?     : string;
+  build?       : string;
+  site?        : string;
+  personality? : { id: string; name: string };
 };
 
 type State = Turning & ByRun & Offered & ChatSet & ServerSays;
@@ -172,7 +173,13 @@ export type Choice = { text: string; to: string; move: Move; here: boolean; vend
 
 export type Prompts = Record<"prompt" | "compact", { text: string; def: string }>;
 
+export type Persona = { id: string; name: string; pronouns: string; text: string };
+
+export type Personalities = { active: string; list: Persona[]; pronouns: string[]; error?: string };
+
 export const MAIN = "UniiChat";
+
+export const UNII = { id: "unii", name: "Unii" };
 
 export const TURN = "Unii's turn";
 
@@ -188,8 +195,6 @@ export const IDLE     = "idle";
 export const USE_PING = 20000;
 
 export const FRAME = 2 ** 22;
-
-export const HINT = "Message UniiChat";
 
 const WAIT = "compressing…";
 const SUMS = "compressing earlier messages…";
@@ -297,6 +302,14 @@ export function view_new(): View {
   };
 }
 
+// another personality's chat: the same ids, other messages
+function view_forget(v: View): void {
+  [v.parts, v.turn, v.fold, v.live, v.page] = [[], Infinity, null, [], null];
+  for (const map of [v.nodes, v.whole, v.open, v.minds, v.pages]) {
+    map.clear();
+  }
+}
+
 export function view_hear(v: View, msg: Server): Client[] {
   switch (msg.$) {
     case "know": {
@@ -337,6 +350,9 @@ export function view_hear(v: View, msg: Server): Client[] {
     }
     case "state": {
       const { $, ...state } = msg;
+      if (v.personality !== undefined && state.personality?.id !== v.personality.id) {
+        view_forget(v);
+      }
       Object.assign(v, state);
       for (const page of v.pages.values()) {
         page.pick = v.runs[page.name] ?? page.pick;
@@ -540,12 +556,20 @@ export function progress_show(p: Progress): string {
   return phase + (p.why === null ? "" : " · paused");
 }
 
+export function main_name(v: View): string {
+  return v.personality === undefined || v.personality.id === UNII.id ? MAIN : v.personality.name;
+}
+
+export function hint(v: View): string {
+  return "Message " + main_name(v);
+}
+
 export function view_tabs(v: View): Tab[] {
   const at    = v.page === null ? null : v.page.name;
   const names = at === null || v.agents.includes(at) ? v.agents : [...v.agents, at];
   return [null, ...names].map((name) => {
     const here = name === at;
-    const text = (here ? GLYPH.here : GLYPH.tab) + " " + (name ?? MAIN);
+    const text = (here ? GLYPH.here : GLYPH.tab) + " " + (name ?? main_name(v));
     return { name, here, text };
   });
 }

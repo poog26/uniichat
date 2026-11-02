@@ -12,6 +12,7 @@ import * as Md from "./Md.ts";
 import { JOBS, Memory, type Msg as Log, type Pair, type Room, type Share } from "./Memory.ts";
 import { OpenAI } from "./OpenAI.ts";
 import { Owner } from "./Owner.ts";
+import { BUILT_IN, Personality, PRONOUN_SETS } from "./Personality.ts";
 import { Pick } from "./Pick.ts";
 import { ACTIVE_MS, Push } from "./Push.ts";
 import { Reap } from "./Reap.ts";
@@ -26,7 +27,7 @@ import { PROMPTS, SEARCHES, Tools } from "./Tools.ts";
 import { ACTIVE, FRAME, IDLE, IMAGES, live_push, MEDIA, PING, QUIT, SUMMARIES, TICK, TURN, WIRE, type Answer, type Live, type Part, type Pending, type Queued, type Server as Out, type Sums, type Talk as Meter, TOKEN, type Wait } from "./View.ts";
 import * as config from "./Config.ts";
 import { err_code, err_stack, err_why } from "./Err.ts";
-import { get, rec, text_of } from "./Json.ts";
+import { get, rec, str, text_of } from "./Json.ts";
 import hello_md from "./hello.md" with { type: "text" };
 import app_js from "./web/app.js" with { type: "file" };
 import index_html from "./web/index.html" with { type: "file" };
@@ -94,13 +95,13 @@ const WIN        = process.platform === "win32";
 const PID        = config.DIR + "/server.pid";
 const CHAT       = config.DIR + "/chat";
 const HEAD       = "Turn:\n\n";
-const GOAL       = "You check a goal. Below is a chat between a user and Unii, an AI agent: its older messages as summary lines (id+n|text), then its latest messages whole, then the goal the user set with /goal. Answer yes if the chat shows the goal fully satisfied now, else no. Write that one word, nothing else.";
+const GOAL       = "You check a goal. Below is a chat between a user and {name}, an AI agent: its older messages as summary lines (id+n|text), then its latest messages whole, then the goal the user set with /goal. Answer yes if the chat shows the goal fully satisfied now, else no. Write that one word, nothing else.";
 const GOAL_ASK   = "\nThe goal:\n\n";
 const GOAL_NO    = "The goal isn't satisfied yet: keep working.";
 const TALK_FULL  = "Conversation mode switched itself off: it was full.";
 const TALK_SMALL = "Conversation mode switched itself off: too long for {model}.";
 const TALK_LONG  = "Conversation mode switched itself off: {model} refused the turn as too long.";
-const TALK_BIG   = "Conversation mode can't start: the messages since message {id} already fill its space in Unii's view.";
+const TALK_BIG   = "Conversation mode can't start: the messages since message {id} already fill its space in {name}'s view.";
 const TALK_IMP   = "Conversation mode switched itself off: the import filled it.";
 const TALK_OFF_AT = 0.9;
 const FULL       = "UniiChat's disk is full; try again soon.";
@@ -117,6 +118,8 @@ const BODIES     = ["say", "import", "voice"];
 
 const PAIR       = 200;
 
+const SWITCHED   = 1012;
+
 const PAGE_CSP   = "default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:; media-src 'self'; font-src data:; form-action 'none'; base-uri 'none'; frame-ancestors 'self'; sandbox allow-same-origin allow-popups";
 const PAGE_BASE  = `<!doctype html><meta charset="utf-8"><base target="_blank"><style>:root { color-scheme: light dark; } body { margin: 10px 12px; font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif; color: #111111; background: #ffffff; } a { color: inherit; } @media (prefers-color-scheme: dark) { body { color: #e3e3e6; background: #171719; } }</style>\n`;
 
@@ -132,6 +135,7 @@ const PIECE      = 2 ** 16;
 const OWN        = ["/ws", "/export"];
 
 const HELLO      = hello_md.trim().replace("{install}", config.SITE + "/install.sh");
+const BEGUN      = "{name}'s memory begins here, apart from every other personality's.";
 const HELLO_LINE = "unii: hello: UniiChat, one endless chat kept in a memory tree, recent days in more detail; build anything for years; recalls the past (ad2cat.py); a chatbot with a memory system; the user's terminal install.";
 
 // the site's page, index.html: imported as a file, a path (Bun's types
@@ -195,8 +199,8 @@ let bell: ReturnType<typeof setTimeout> | undefined;
 
 export namespace Chat {
 
-  export function open(): Chat {
-    const mem = Memory.load(CHAT, () => ({ system: Tools.prompt("compact"), searches: 0, server: "" }), Owner.act_put);
+  export function open(dir: string): Chat {
+    const mem = Memory.load(dir, () => ({ system: Personality.fill(Tools.prompt("compact")), searches: 0, server: "" }), Owner.act_put);
     const cut = mem.work;
     Limit.answering(() => ({ queued: Run.waiting(chat.main), busy: chat.main.busy }));
     const main = Run.make<Pending, Msg>(TURN, {
@@ -238,7 +242,8 @@ export namespace Chat {
       Chat.note(chat, saved + " isn't offered here, so the chat now runs on " + Chat.pick_name(pick) + ".");
     }
     if (mem.count === 0) {
-      Memory.push(mem, [{ kind: "unii", text: HELLO, line: HELLO_LINE }]);
+      const first: Log = Personality.active().id === BUILT_IN.id ? { kind: "unii", text: HELLO, line: HELLO_LINE } : { kind: "note", text: Personality.fill(BEGUN) };
+      Memory.push(mem, [first]);
     }
     chat.eye = Chat.eye(mem, Memory.turn(mem));
     mem.made = (l, i) => Chat.made(chat, l, i);
@@ -448,7 +453,7 @@ export namespace Chat {
         Chat.used(chat, tokens);
       }
     };
-    const ask = { ...Chat.share(chat, Tools.prompt("prompt")), searches: SEARCHES, server, blocks, imgs, talk: mem.talk !== null, no_wait: true, limits, who: "main", used };
+    const ask = { ...Chat.share(chat, Personality.system(Tools.prompt("prompt"))), searches: SEARCHES, server, blocks, imgs, talk: mem.talk !== null, no_wait: true, limits, who: "main", used };
     chat.model = model;
     chat.asked = true;
     chat.open = 0;
@@ -489,7 +494,7 @@ export namespace Chat {
       return Memory.line({ l: 0, i }, msg.kind + ": " + msg.text) + "\n";
     });
     const blocks = [...Memory.view(mem, at, Memory.fitted(mem)), { text: tail.join("") + GOAL_ASK + goal, mark: true }];
-    return { call: AskAI.ask({ ...Chat.share(chat, GOAL), blocks, no_wait: true, limits: Chat.limits(chat), who: "goal" }, () => {}), goal };
+    return { call: AskAI.ask({ ...Chat.share(chat, Personality.fill(GOAL)), blocks, no_wait: true, limits: Chat.limits(chat), who: "goal" }, () => {}), goal };
   }
 
   export async function checked(chat: Chat, check: Check, halt: AbortController): Promise<boolean> {
@@ -666,7 +671,7 @@ export namespace Chat {
   export function guess(chat: Chat): number {
     const mem = chat.mem;
     const blocks = [...Memory.view(mem, mem.count, mem.view.parts, mem.talk), Tools.devices(chat.tools), Tools.skills(chat.tools), Tools.at_work(chat.tools)];
-    const texts = [Tools.prompt("prompt"), JSON.stringify(Tools.list("main")), ...blocks.map((b) => b.text)];
+    const texts = [Personality.system(Tools.prompt("prompt")), JSON.stringify(Tools.list("main")), ...blocks.map((b) => b.text)];
     return Math.ceil(texts.reduce((n, text) => n + Memory.bytes(text), 0) / TOKEN);
   }
 
@@ -820,7 +825,7 @@ export namespace Chat {
 
   export async function ingest(chat: Chat, id: string, body: Body): Promise<Answer> {
     if (chat.main.busy || chat.batch !== null) {
-      return { error: (chat.main.busy ? "Unii is answering" : "An import is under way") + ": import again once it ends." };
+      return { error: (chat.main.busy ? Personality.active().name + " is answering" : "An import is under way") + ": import again once it ends." };
     }
     const done = Chat.done(chat);
     let said = 0;
@@ -1109,7 +1114,7 @@ export namespace Chat {
         sent[run.name] = run.sent.flatMap(({ m }) => Array.from({ length: m.end - m.id }, (_, k) => m.id + k));
       }
     }
-    return { $: "state", busy: chat.main.busy, wait: Chat.waits(chat), agents, runs, pick: chat.pick, ...config.OFFER, importing, limits, queue, sent, sums: Chat.sums(chat), again: chat.mem.again, timers, mcp, talk, build: BUILD, site: config.SITE };
+    return { $: "state", busy: chat.main.busy, wait: Chat.waits(chat), agents, runs, pick: chat.pick, ...config.OFFER, importing, limits, queue, sent, sums: Chat.sums(chat), again: chat.mem.again, timers, mcp, talk, build: BUILD, site: config.SITE, personality: { id: Personality.active().id, name: Personality.active().name } };
   }
 
   export function sums(chat: Chat): Sums | null {
@@ -1164,7 +1169,7 @@ export namespace Chat {
     const link = { send: (msg: object) => Chat.send(sock, msg), live: () => chat.socks.has(sock), work, scratch, shell };
     sock.data.device = Tools.attach(chat.tools, tab, host, sock.data.who, link, Owner.kept());
     if (sock.data.device !== host) {
-      Chat.send(sock, { $: "note", text: host + " was taken: Unii calls this computer " + sock.data.device + "." });
+      Chat.send(sock, { $: "note", text: host + " was taken: " + Personality.active().name + " calls this computer " + sock.data.device + "." });
     }
   }
 
@@ -1334,7 +1339,7 @@ export namespace Chat {
         if (from !== null && Memory.talk_size(mem) > Chat.room(chat)) {
           mem.talk = null;
           mem.talked.clear();
-          return { error: TALK_BIG.replace("{id}", String(from)) };
+          return { error: Personality.fill(TALK_BIG).replace("{id}", String(from)) };
         }
         Chat.talk(chat, from);
         return {};
@@ -1593,6 +1598,9 @@ export namespace Main {
       case "/api/prompts": {
         return await Main.prompts(req);
       }
+      case "/api/personalities": {
+        return await Main.personalities(req);
+      }
       case "/api/settings": {
         return await Main.settings(req);
       }
@@ -1704,6 +1712,57 @@ export namespace Main {
     return Response.json(read());
   }
 
+  export async function personalities(req: Request): Promise<Response> {
+    const read = () => ({ active: Personality.active().id, list: Personality.list(), pronouns: PRONOUN_SETS });
+    if (req.method !== "POST") {
+      return Response.json(read());
+    }
+    const msg: unknown = await req.json().catch(() => null);
+    const [use, id] = [str(get(msg, "use")), str(get(msg, "id"))];
+    try {
+      if (use !== undefined) {
+        await Main.become(use);
+      } else {
+        const p = { name: text_of(get(msg, "name")), pronouns: text_of(get(msg, "pronouns")), text: text_of(get(msg, "text")) };
+        Personality.save(id === undefined ? p : { ...p, id });
+      }
+    } catch (err) {
+      return Response.json({ ...read(), error: err_why(err) }, { status: 400 });
+    }
+    return Response.json(read());
+  }
+
+  // the chat open now ends as on a restart, and every socket comes back to
+  // the next one's
+  export async function become(id: string): Promise<void> {
+    const chat = Main.chat;
+    const [from, next] = [Personality.active(), Personality.read(id)];
+    if (next === null) {
+      throw new Error("No personality " + id + ".");
+    }
+    await chat.writes;
+    if (next.id === from.id || Main.chat !== chat) {
+      return;
+    }
+    if (chat.main.busy || chat.batch !== null || Tools.working(chat.tools).length > 0) {
+      throw new Error(from.name + " is at work: switch once that's done, or stop it first.");
+    }
+    Chat.note(chat, "The user switched to " + next.name + ".");
+    Chat.stop(chat, null);
+    Memory.stop(chat.mem);
+    clearTimeout(bell);
+    const socks = [...chat.socks];
+    for (const sock of socks) {
+      Chat.leave(chat, sock, true);
+      sock.data.device = null;
+    }
+    Personality.choose(next.id);
+    Main.chat = Chat.open(Personality.chat(next.id));
+    Chat.note(Main.chat, "The user switched here from " + from.name + ".");
+    socks.forEach((sock) => sock.close(SWITCHED, "personality switched"));
+    console.log("unii: switched to " + next.name);
+  }
+
   export async function http(req: Request, server: Bun.Server<Sock["data"]>): Promise<Response | undefined> {
     const p = new URL(req.url).pathname;
     const away = /^(cross|same)-site$/.test(req.headers.get("sec-fetch-site") ?? "");
@@ -1756,7 +1815,7 @@ export namespace Main {
     fs.writeFileSync(PID, String(process.pid));
     Owner.open();
     Push.keys();
-    Main.chat = Chat.open();
+    Main.chat = Chat.open(Personality.chat(Personality.load().id));
     process.on("unhandledRejection", Main.unowned);
     Main.server = Bun.serve<Sock["data"]>({
       port               : port,

@@ -1287,13 +1287,13 @@ function ticks_at(s) {
   }
   const seen = new Map;
   return (from, n) => {
-    const list = runs.get(n) ?? [];
+    const list2 = runs.get(n) ?? [];
     let k = seen.get(n) ?? 0;
-    while (k < list.length && list[k] < from) {
+    while (k < list2.length && list2[k] < from) {
       k++;
     }
     seen.set(n, k);
-    return k < list.length ? list[k] : -1;
+    return k < list2.length ? list2[k] : -1;
   };
 }
 function flanks(s, i, n, c) {
@@ -1662,49 +1662,49 @@ function block_parse(lines, i, d) {
   }
   const fence = fence_open(line);
   if (fence !== null) {
-    const end = runs((l) => !fence_shuts(l, fence));
+    const end2 = runs((l) => !fence_shuts(l, fence));
     const k = line.trim().slice(fence.length).trim();
     const pad = indent(line);
-    const x = lines.slice(i + 1, end).map((l) => l.slice(Math.min(pad, indent(l)))).join(`
+    const x2 = lines.slice(i + 1, end2).map((l) => l.slice(Math.min(pad, indent(l)))).join(`
 `);
-    return [{ $: "Code", k, x }, end + 1];
+    return [{ $: "Code", k, x: x2 }, end2 + 1];
   }
   if (head !== null) {
-    const x = span_parse(head_text(head[2] ?? ""));
-    return [{ $: "Head", k: head[1].length, x }, i + 1];
+    const x2 = span_parse(head_text(head[2] ?? ""));
+    return [{ $: "Head", k: head[1].length, x: x2 }, i + 1];
   }
   if (is_rule(line)) {
     return [{ $: "Rule" }, i + 1];
   }
   if (QUOT.test(line) && d < NESTING_MAX) {
     let [para, fenced] = item_line(line.replace(QUOT, ""), false);
-    const end = runs((l, j) => {
+    const end2 = runs((l, j) => {
       const lazy = !QUOT.test(l) && para && l.trim() !== "" && !block_starts(lines, j);
       if (QUOT.test(l)) {
         [para, fenced] = item_line(l.replace(QUOT, ""), fenced);
       }
       return QUOT.test(l) || lazy;
     });
-    const body = lines.slice(i, end).map((l) => l.replace(QUOT, ""));
-    return [{ $: "Quot", x: blocks_parse(body, d + 1)[0] }, end];
+    const body = lines.slice(i, end2).map((l) => l.replace(QUOT, ""));
+    return [{ $: "Quot", x: blocks_parse(body, d + 1)[0] }, end2];
   }
   if (list_kind(line) !== null && d < NESTING_MAX) {
     return list_parse(lines, i, d);
   }
   const a = table_head(lines, i);
   if (a !== null) {
-    const end = lines_run(lines, i + 1, (l, j) => l.trim() !== "" && !block_starts(lines, j));
-    const rows = [line, ...lines.slice(i + 2, end)].map((l) => row_cells(l, a.length));
-    return [{ $: "Tabl", x: rows, a }, end];
+    const end2 = lines_run(lines, i + 1, (l, j) => l.trim() !== "" && !block_starts(lines, j));
+    const rows = [line, ...lines.slice(i + 2, end2)].map((l) => row_cells(l, a.length));
+    return [{ $: "Tabl", x: rows, a }, end2];
   }
   if (indent(untab(line)) >= 4) {
-    const end = runs((l) => l.trim() === "" || indent(untab(l)) >= 4);
-    const body = lines.slice(i, end).map((l) => untab(l).slice(4));
+    const end2 = runs((l) => l.trim() === "" || indent(untab(l)) >= 4);
+    const body = lines.slice(i, end2).map((l) => untab(l).slice(4));
     while (body[body.length - 1].trim() === "") {
       body.pop();
     }
     return [{ $: "Code", k: "", x: body.join(`
-`) }, end];
+`) }, end2];
   }
   const def = SAID ? null : def_at(lines, i);
   if (def !== null) {
@@ -1868,30 +1868,30 @@ var EFFORTS = ["low", "medium", "high", "xhigh", "max"];
 var SPEEDS = ["slow", "fast", "ultrafast"];
 var LABELS = [...new Set(Object.values(MODELS).flat().map((m) => m.label))];
 var Pick;
-((Pick2) => {
-  function model(vendor, label) {
-    return MODELS[vendor].find((m) => m.label === label);
+((Pick) => {
+  function model(vendor, label2) {
+    return MODELS[vendor].find((m) => m.label === label2);
   }
-  Pick2.model = model;
-  function on(pick, vendor, model) {
+  Pick.model = model;
+  function on(pick, vendor, model2) {
     const below = SPEEDS.slice(0, SPEEDS.indexOf(pick.speed) + 1);
-    const speed = below.filter((s) => model.speeds.includes(s)).pop() ?? "slow";
-    return { ...pick, vendor, model: model.label, speed };
+    const speed = below.filter((s) => model2.speeds.includes(s)).pop() ?? "slow";
+    return { ...pick, vendor, model: model2.label, speed };
   }
-  Pick2.on = on;
+  Pick.on = on;
   function models(vendors, labels) {
     return vendors.flatMap((v) => MODELS[v].filter((m) => labels.includes(m.label)).map((m) => [v, m]));
   }
-  Pick2.models = models;
-  function options(pick, move, offer) {
+  Pick.models = models;
+  function options(pick, move2, offer) {
     const speeds = Pick.model(pick.vendor, pick.model)?.speeds ?? [];
     const { profile: _, ...plain } = pick;
     const all = Pick.models(offer.vendors, offer.models).map(([v, m]) => [m.label, Pick.on(plain, v, m)]);
     const profiles = Object.keys(offer.profiles ?? {}).flatMap((name) => {
-      const on = Pick.profile(name, offer, pick.effort, pick.speed);
-      return on === null ? [] : [[name, on]];
+      const on2 = Pick.profile(name, offer, pick.effort, pick.speed);
+      return on2 === null ? [] : [[name, on2]];
     });
-    switch (move) {
+    switch (move2) {
       case "next":
       case "prev":
       case "model": {
@@ -1907,91 +1907,91 @@ var Pick;
       }
     }
   }
-  Pick2.options = options;
-  function move(pick, move, offer, to) {
-    const list = Pick.options(pick, move, offer);
-    const n = list.length;
-    const at = list.findIndex(([, p]) => Pick.label(p) === Pick.label(pick) && p.profile === pick.profile);
-    const d = move === "prev" || move === "down" ? -1 : 1;
-    const ends = move === "up" || move === "down";
+  Pick.options = options;
+  function move(pick, move2, offer, to) {
+    const list2 = Pick.options(pick, move2, offer);
+    const n = list2.length;
+    const at = list2.findIndex(([, p]) => Pick.label(p) === Pick.label(pick) && p.profile === pick.profile);
+    const d = move2 === "prev" || move2 === "down" ? -1 : 1;
+    const ends = move2 === "up" || move2 === "down";
     const next = ends ? Math.max(0, Math.min(n - 1, at + d)) : (at + d + n) % n;
     const mine = ([, p]) => p.profile === undefined && p.vendor === pick.vendor;
-    const same = list.filter(([part, p]) => part === to || p.profile === undefined && p.vendor + ":" + part === to);
-    const like = list.filter(([part]) => part.toLowerCase().includes(String(to).toLowerCase()));
+    const same = list2.filter(([part, p]) => part === to || p.profile === undefined && p.vendor + ":" + part === to);
+    const like = list2.filter(([part]) => part.toLowerCase().includes(String(to).toLowerCase()));
     const one = like.length === 1 ? like[0] : like.filter(mine).length === 1 ? like.find(mine) : undefined;
-    const hit = to === undefined ? list[next] : same.find(mine) ?? same[0] ?? one;
+    const hit = to === undefined ? list2[next] : same.find(mine) ?? same[0] ?? one;
     return hit === undefined ? null : hit[1];
   }
-  Pick2.move = move;
-  function to_model(pick, label, vendors, { models }) {
-    const all = Pick.models(vendors, models).filter(([, m]) => m.label === label);
+  Pick.move = move;
+  function to_model(pick, label2, vendors, { models: models2 }) {
+    const all = Pick.models(vendors, models2).filter(([, m]) => m.label === label2);
     const hit = all.find(([v]) => v === pick.vendor) ?? all[0];
     return hit === undefined ? null : Pick.on(pick, hit[0], hit[1]);
   }
-  Pick2.to_model = to_model;
-  function twin(vendor, label, vendors) {
-    return vendors.some((v) => v !== vendor && Pick.model(v, label) !== undefined);
+  Pick.to_model = to_model;
+  function twin(vendor, label2, vendors) {
+    return vendors.some((v) => v !== vendor && Pick.model(v, label2) !== undefined);
   }
-  Pick2.twin = twin;
+  Pick.twin = twin;
   function label(pick) {
     return [pick.vendor, pick.model, pick.effort, pick.speed].join(":");
   }
-  Pick2.label = label;
+  Pick.label = label;
   function ask(pick) {
-    const model = Pick.model(pick.vendor, pick.model);
-    return { ...pick, model: model?.id ?? pick.model };
+    const model2 = Pick.model(pick.vendor, pick.model);
+    return { ...pick, model: model2?.id ?? pick.model };
   }
-  Pick2.ask = ask;
+  Pick.ask = ask;
   function named(run) {
-    const model = MODELS[run.vendor].find((m) => m.id === run.model);
-    return { ...run, model: model?.label ?? run.model };
+    const model2 = MODELS[run.vendor].find((m) => m.id === run.model);
+    return { ...run, model: model2?.label ?? run.model };
   }
-  Pick2.named = named;
-  function falls(run, falls) {
+  Pick.named = named;
+  function falls(run, falls2) {
     const own = { vendor: run.vendor, model: run.model, effort: run.effort, speed: run.speed };
-    const list = falls.map((f) => {
-      const on = Pick.on(own, f.vendor, f.model);
-      return Pick.ask({ ...on, effort: f.effort ?? on.effort, speed: f.speed ?? on.speed });
+    const list2 = falls2.map((f) => {
+      const on2 = Pick.on(own, f.vendor, f.model);
+      return Pick.ask({ ...on2, effort: f.effort ?? on2.effort, speed: f.speed ?? on2.speed });
     });
-    return [own, ...list].filter((p, k, all) => all.findIndex((q) => q.vendor === p.vendor && q.model === p.model) === k);
+    return [own, ...list2].filter((p, k, all) => all.findIndex((q) => q.vendor === p.vendor && q.model === p.model) === k);
   }
-  Pick2.falls = falls;
+  Pick.falls = falls;
   function profile(name, offer, effort, speed) {
     const profiles = offer.profiles ?? {};
     const first = Object.hasOwn(profiles, name) ? profiles[name][0] : undefined;
     if (first === undefined) {
       return null;
     }
-    const on = Pick.on({ vendor: first.vendor, model: first.model.label, effort, speed }, first.vendor, first.model);
-    return { ...on, effort: first.effort ?? effort, speed: first.speed ?? on.speed, profile: name };
+    const on2 = Pick.on({ vendor: first.vendor, model: first.model.label, effort, speed }, first.vendor, first.model);
+    return { ...on2, effort: first.effort ?? effort, speed: first.speed ?? on2.speed, profile: name };
   }
-  Pick2.profile = profile;
+  Pick.profile = profile;
   function read(x, offer) {
-    const [profile, effort, speed, label] = [get(x, "profile"), get(x, "effort"), get(x, "speed"), get(x, "model")];
-    if (profile !== undefined) {
-      return typeof profile === "string" && typeof effort === "string" && EFFORTS.includes(effort) ? Pick.profile(profile, offer, effort, String(speed)) : null;
+    const [profile2, effort, speed, label2] = [get(x, "profile"), get(x, "effort"), get(x, "speed"), get(x, "model")];
+    if (profile2 !== undefined) {
+      return typeof profile2 === "string" && typeof effort === "string" && EFFORTS.includes(effort) ? Pick.profile(profile2, offer, effort, String(speed)) : null;
     }
     const vendor = offer.vendors.find((v) => v === get(x, "vendor"));
-    if (vendor === undefined || typeof label !== "string" || !offer.models.includes(label)) {
+    if (vendor === undefined || typeof label2 !== "string" || !offer.models.includes(label2)) {
       return null;
     }
-    const model = Pick.model(vendor, label);
-    if (model === undefined || typeof effort !== "string" || !EFFORTS.includes(effort) || typeof speed !== "string" || !model.speeds.includes(speed)) {
+    const model2 = Pick.model(vendor, label2);
+    if (model2 === undefined || typeof effort !== "string" || !EFFORTS.includes(effort) || typeof speed !== "string" || !model2.speeds.includes(speed)) {
       return null;
     }
-    return { vendor, model: label, effort, speed };
+    return { vendor, model: label2, effort, speed };
   }
-  Pick2.read = read;
+  Pick.read = read;
   function window2(pick, offer) {
-    const falls = pick.profile === undefined ? [] : offer.profiles?.[pick.profile] ?? [];
-    const models = [Pick.model(pick.vendor, pick.model), ...falls.map((f) => f.model)];
-    return Math.min(...models.map((m) => m?.window ?? 272000));
+    const falls2 = pick.profile === undefined ? [] : offer.profiles?.[pick.profile] ?? [];
+    const models2 = [Pick.model(pick.vendor, pick.model), ...falls2.map((f) => f.model)];
+    return Math.min(...models2.map((m) => m?.window ?? 272000));
   }
-  Pick2.window = window2;
+  Pick.window = window2;
   function load(saved, offer, def) {
     return Pick.read(saved ?? def, offer) ?? def;
   }
-  Pick2.load = load;
+  Pick.load = load;
 })(Pick ||= {});
 
 // View.ts
@@ -1999,6 +1999,7 @@ var PACE = 0.0001;
 var OPENING = 1;
 var SUMMARIES = "summaries";
 var MAIN = "UniiChat";
+var UNII = { id: "unii", name: "Unii" };
 var TURN = "Unii's turn";
 var WIRE = 3;
 var PING = 1e4;
@@ -2008,7 +2009,6 @@ var ACTIVE = "active";
 var IDLE = "idle";
 var USE_PING = 20000;
 var FRAME = 2 ** 22;
-var HINT = "Message UniiChat";
 var WAIT = "compressing…";
 var SUMS = "compressing earlier messages…";
 var UNSENT = "Sends once connected.";
@@ -2088,6 +2088,12 @@ function view_new() {
     wake: () => {}
   };
 }
+function view_forget(v) {
+  [v.parts, v.turn, v.fold, v.live, v.page] = [[], Infinity, null, [], null];
+  for (const map of [v.nodes, v.whole, v.open, v.minds, v.pages]) {
+    map.clear();
+  }
+}
 function view_hear(v, msg) {
   switch (msg.$) {
     case "know": {
@@ -2128,6 +2134,9 @@ function view_hear(v, msg) {
     }
     case "state": {
       const { $, ...state } = msg;
+      if (v.personality !== undefined && state.personality?.id !== v.personality.id) {
+        view_forget(v);
+      }
       Object.assign(v, state);
       for (const page of v.pages.values()) {
         page.pick = v.runs[page.name] ?? page.pick;
@@ -2314,12 +2323,18 @@ function progress_show(p) {
   const phase = p.open[0] > 0 ? "Summarizing messages: " + n(p.msgs - p.open[0]) + " of " + n(p.msgs) : "Merging the top of the tree: " + merges + (merges === 1 ? " merge" : " merges") + " left · about " + Math.ceil((p.total - p.done) * PACE) + " min";
   return phase + (p.why === null ? "" : " · paused");
 }
+function main_name(v) {
+  return v.personality === undefined || v.personality.id === UNII.id ? MAIN : v.personality.name;
+}
+function hint(v) {
+  return "Message " + main_name(v);
+}
 function view_tabs(v) {
   const at = v.page === null ? null : v.page.name;
   const names = at === null || v.agents.includes(at) ? v.agents : [...v.agents, at];
   return [null, ...names].map((name) => {
     const here = name === at;
-    const text = (here ? GLYPH.here : GLYPH.tab) + " " + (name ?? MAIN);
+    const text = (here ? GLYPH.here : GLYPH.tab) + " " + (name ?? main_name(v));
     return { name, here, text };
   });
 }
@@ -2497,8 +2512,8 @@ function part_rows(v, id, n, t, talk) {
   }
   const text = n === 1 ? "fold" : GLYPH.open + " " + n + "x · fold";
   if (n > 1) {
-    const rows = [...part_rows(v, id, half, t, talk), ...part_rows(v, id + half, half, t, talk)];
-    return [{ $: "Box", id, n, text, rows }];
+    const rows2 = [...part_rows(v, id, half, t, talk), ...part_rows(v, id + half, half, t, talk)];
+    return [{ $: "Box", id, n, text, rows: rows2 }];
   }
   const rows = entry === undefined ? [] : whole_rows(id, entry, v.whole.get(id - 1));
   return [{ $: "Box", id, n, text, rows }];
@@ -3155,15 +3170,15 @@ var MODES = [
   ["conversation", "Messages stay word-for-word in Unii's view until you switch back. Use it for discussions. It costs more per turn."]
 ];
 function pick_html(fold, on, knobs, talk) {
-  const knob = (move, hint, text, rows) => [
-    `<button title="${esc(hint)}" data-knob="${move}" popovertarget="pick-${move}" aria-haspopup="menu">${esc(text)}</button>`,
+  const knob = (move, hint2, text, rows) => [
+    `<button title="${esc(hint2)}" data-knob="${move}" popovertarget="pick-${move}" aria-haspopup="menu">${esc(text)}</button>`,
     `<div id="pick-${move}" class="choices" popover role="menu" aria-label="${move[0].toUpperCase() + move.slice(1)}">${rows}</div>`
   ];
   const parts = knobs.map((k) => k.choices.length === 0 ? [`<span class="knob" title="${esc(k.hint)}">${esc(k.text)}</span>`] : knob(k.move, k.hint, k.text, k.choices.map(choice_html).join("")));
   const all = fold === null ? [] : [`<button class="all"${act_html({ $: "Fold", on })}>${esc(fold)}</button>`];
-  const mode = ([name, hint], k) => {
+  const mode = ([name, hint2], k) => {
     const here = talk != null === (k === 1);
-    return `<button role="menuitemradio" aria-checked="${here}" title="${esc(hint)}"${here ? " autofocus" : act_html({ $: "Talk", on: k === 1 })}>${name}</button>`;
+    return `<button role="menuitemradio" aria-checked="${here}" title="${esc(hint2)}"${here ? " autofocus" : act_html({ $: "Talk", on: k === 1 })}>${name}</button>`;
   };
   const [now, about] = MODES[talk == null ? 0 : 1];
   const modes = talk === undefined ? [] : knob("mode", about, now, MODES.map(mode).join(""));
@@ -3200,7 +3215,7 @@ function timers_html(timers) {
     return `<li data-id="${esc(t.id)}"><span class="when">${esc(timer_when(t))}</span><span class="text">${esc(t.text)}</span>${cancel}</li>`;
   });
 }
-function account_html(prompts, notify = null) {
+function account_html(prompts, people, notify = null) {
   const item = (what, note, act) => `<div class="item"><p>${what}${note === "" ? "" : `<small>${note}</small>`}</p>${act}</div>`;
   const acts = [
     item("This browser", "Signed in to this server.", `<button class="chip out">Sign out</button>`),
@@ -3208,9 +3223,30 @@ function account_html(prompts, notify = null) {
     item("Export memory", "The chat and its summaries, in one file.", `<a class="chip" href="/export">Download</a>`)
   ];
   const unread = item("Could not read the prompts.", "", `<button class="chip retry">Try again</button>`);
-  const mine = section_html("Prompts", prompts === null ? unread : prompt_html("prompt", prompts.prompt.text, "The user prompt: Unii's system prompt in every turn; its subagents get it too once you change it. Add who you are and how you want work done at its end. prompt.md in the server's folder; empty: the built-in one.") + prompt_html("compact", prompts.compact.text, "The compaction prompt: all a summary of the memory gets, nothing else. compact.md in the server's folder; empty: the built-in one."));
+  const mine = section_html("Prompts", prompts === null ? unread : prompt_html("prompt", prompts.prompt.text, "The user prompt: the system prompt in every turn, for every personality, where {name} and {pronouns} become the one in use's; its subagents get it too once you change it. Add who you are and how you want work done at its end. prompt.md in the server's folder; empty: the built-in one.") + prompt_html("compact", prompts.compact.text, "The compaction prompt: all a summary of the memory gets, nothing else; {name} and {pronouns} as above. compact.md in the server's folder; empty: the built-in one."));
   const mcp = section_html("MCP servers", `<div class="mcp"></div>`);
-  return `<a class="back" href="/" data-go="/">← Chat</a><h1>Settings</h1>` + mine + section_html("This browser", acts.join("")) + mcp + `<div class="owned"></div>`;
+  return `<a class="back" href="/" data-go="/">← Chat</a><h1>Settings</h1>` + personalities_html(people) + mine + section_html("This browser", acts.join("")) + mcp + `<div class="owned"></div>`;
+}
+function personalities_html(people) {
+  if (people === null) {
+    return section_html("Personalities", `<div class="item"><p>Could not read the personalities.</p><button class="chip retry">Try again</button></div>`);
+  }
+  const sets = `<datalist id="pronoun-sets">${people.pronouns.map((p) => `<option value="${esc(p)}">`).join("")}</datalist>`;
+  const row = (p) => {
+    const here = p.id === people.active;
+    const use = here ? `<span class="chip on">In use</span>` : `<button class="chip use" data-id="${esc(p.id)}">Switch</button>`;
+    return `<div class="item"><p>${esc(p.name)}<small>${esc(p.pronouns)}</small></p>${use}</div>` + `<details class="persona"><summary>Edit ${esc(p.name)}</summary>${persona_html(p)}</details>`;
+  };
+  const note = `<p class="sub">Each personality has a memory of its own; switching waits for the one in use to finish its work. personalities/ in the server's folder.</p>`;
+  const add = `<details class="persona"><summary>New personality</summary>${persona_html(null)}</details>`;
+  return section_html("Personalities", note + people.list.map(row).join("") + add + sets);
+}
+function persona_html(p) {
+  const id = p === null ? "" : ` data-id="${esc(p.id)}"`;
+  const name = `<label>Name<input name="name" value="${esc(p?.name ?? "")}" maxlength="40" required autocomplete="off"></label>`;
+  const them = `<label>Pronouns<small>How the memory speaks of it: she/her, he/him, they/them, it/its.</small><input name="pronouns" list="pronoun-sets" value="${esc(p?.pronouns ?? "they/them")}" required autocomplete="off"></label>`;
+  const area = `<textarea name="text" rows="12" spellcheck="false" placeholder="Who this personality is, in your words or theirs. It follows the user prompt in every turn.">${esc(p?.text ?? "")}</textarea>`;
+  return `<form class="prompt person"${id}>${name}${them}${area}<div><p class="why"></p><button class="chip">${p === null ? "Add" : "Save"}</button></div></form>`;
 }
 function prompt_html(name, text, note) {
   const area = `<textarea name="${name}" rows="12" spellcheck="false">${esc(text)}</textarea>`;
@@ -3250,9 +3286,9 @@ var GROUPS = [
 ];
 function settings_html(page) {
   const rows = new Map(page.settings.filter((r) => r.web && r.from !== "env").map((r) => [r.key, r]));
-  const group = ([title, keys]) => {
-    const shown = keys.flatMap((k) => rows.get(k) ?? []);
-    return shown.length === 0 ? "" : section_html(title, shown.map(setting_html).join(""));
+  const group = ([title, keys2]) => {
+    const shown2 = keys2.flatMap((k) => rows.get(k) ?? []);
+    return shown2.length === 0 ? "" : section_html(title, shown2.map(setting_html).join(""));
   };
   const shown = page.keys.filter((k) => k.from !== "env");
   const keys = shown.length === 0 ? "" : section_html("Keys", `<p class="sub">Kept in keys.json in the server's folder, readable by the server's user only, and never shown again, only their last characters.</p>` + shown.map(key_html).join(""));
@@ -3266,18 +3302,18 @@ function settings_html(page) {
 function offered(vendors, models) {
   return Pick.models(VENDORS.filter((v) => vendors.includes(v)), models).map(([v, m]) => v + ":" + m.label);
 }
-function profiles_html(profiles, offered) {
+function profiles_html(profiles, offered2) {
   const model = (m, i, j) => {
     const [vendor = "", label = m, ...rest] = m.split(":");
     const more = rest.length === 0 ? "" : ` <small>${esc(rest.join(" · "))}</small>`;
     return `<li data-j="${j}"><button type="button" class="grip" data-i="${i}" data-j="${j}" aria-label="Move ${esc(label)}">⠿</button><span>${esc(label)}${more} <small>${esc(vendor)}</small></span><button type="button" class="out" data-i="${i}" data-j="${j}" aria-label="Remove ${esc(label)}">×</button></li>`;
   };
-  const add = (list, i) => {
-    const left = offered.filter((m) => !list.some((x) => x.split(":").slice(0, 2).join(":") === m));
+  const add = (list2, i) => {
+    const left = offered2.filter((m) => !list2.some((x) => x.split(":").slice(0, 2).join(":") === m));
     const groups = [...new Set(left.map((m) => m.split(":")[0]))].map((v) => `<optgroup label="${esc(v)}">${left.filter((m) => m.startsWith(v + ":")).map((m) => `<option value="${esc(m)}">${esc(m.split(":")[1])}</option>`).join("")}</optgroup>`);
     return left.length === 0 ? "" : `<select class="add" data-i="${i}" aria-label="Add model"><option value="">Add model</option>${groups.join("")}</select>`;
   };
-  const one = ([name, list], i) => `<div class="prof" data-i="${i}"><div class="name"><input class="pname" data-i="${i}" value="${esc(name)}" aria-label="Name" placeholder="Enter the profile name here" maxlength="60" spellcheck="false" autocapitalize="off"><button type="button" class="chip red pdel" data-i="${i}">Delete</button></div><ol>${list.map((m, j) => model(m, i, j)).join("")}</ol>${add(list, i)}</div>`;
+  const one = ([name, list2], i) => `<div class="prof" data-i="${i}"><div class="name"><input class="pname" data-i="${i}" value="${esc(name)}" aria-label="Name" placeholder="Enter the profile name here" maxlength="60" spellcheck="false" autocapitalize="off"><button type="button" class="chip red pdel" data-i="${i}">Delete</button></div><ol>${list2.map((m, j) => model(m, i, j)).join("")}</ol>${add(list2, i)}</div>`;
   return profiles.map(one).join("") + `<button type="button" class="chip pnew">Add profile</button>`;
 }
 function setting_html(r) {
@@ -3337,16 +3373,16 @@ function key_html(k) {
 function picks_html(key, vendors, models, value, none, profiles = []) {
   const [vendor = "", model = "", effort = "", speed = ""] = value === "" ? [] : value.split(":");
   const known = VENDORS.includes(vendor);
-  const offered = VENDORS.filter((v) => vendors.includes(v));
+  const offered2 = VENDORS.filter((v) => vendors.includes(v));
   const labels = known ? Pick.models([vendor], models).map(([, m]) => m.label) : [];
   const speeds = known ? Pick.model(vendor, model)?.speeds ?? [] : [];
-  const select = (part, name, all, on, first) => {
+  const select2 = (part, name, all, on, first) => {
     const opts = [...first === null ? [] : [["", first]], ...all.includes(on) || on === "" && first !== null ? [] : [[on, on + " (not offered)"]], ...all.map((x) => [x, x])];
     const items = opts.map(([v, text]) => `<option value="${esc(v)}"${v === on ? " selected" : ""}>${esc(text)}</option>`).join("");
     return `<select id="set-${key}-${part}" name="${key}.${part}" aria-label="${name}">${items}</select>`;
   };
-  const head = select("vendor", "Vendor", [...offered, ...profiles], vendor, none);
-  return vendor === "" || profiles.includes(vendor) ? head : head + select("model", "Model", labels, model, null) + select("effort", "Effort", EFFORTS, effort, null) + select("speed", "Speed", speeds, speed, null);
+  const head = select2("vendor", "Vendor", [...offered2, ...profiles], vendor, none);
+  return vendor === "" || profiles.includes(vendor) ? head : head + select2("model", "Model", labels, model, null) + select2("effort", "Effort", EFFORTS, effort, null) + select2("speed", "Speed", speeds, speed, null);
 }
 function pick_mend(parts, models, profiles = []) {
   const [vendor = "", model = "", effort = "", speed = ""] = parts;
@@ -3552,14 +3588,14 @@ function start(meta) {
   const HL = 1.5 * 11.5, HM = 0.7 * 11.5, PB = 0.7 * em, calm = matchMedia("(prefers-reduced-motion: reduce)");
   tree.style.setProperty("--card", HC + "px");
   const T = B.length - 1, vt = Math.max(-1, ...V.map((p) => p[0])), seen = new Set(V.map((p) => p.join(".")));
-  const has = (l, i) => l < 0 ? i < N : B[l][i] === "1", at = (l, i) => i * 2 ** Math.max(0, l), len = (l) => 2 ** Math.max(0, l);
+  const has2 = (l, i) => l < 0 ? i < N : B[l][i] === "1", at = (l, i) => i * 2 ** Math.max(0, l), len = (l) => 2 ** Math.max(0, l);
   const note = document.createElement("p");
   note.className = "note";
-  const lo = (list, ok) => {
-    let a = 0, z = list.length;
+  const lo = (list3, ok) => {
+    let a = 0, z = list3.length;
     while (a < z) {
       const m = a + z >> 1;
-      ok(list[m]) ? z = m : a = m + 1;
+      ok(list3[m]) ? z = m : a = m + 1;
     }
     return a;
   };
@@ -3567,17 +3603,17 @@ function start(meta) {
   const got = new Map, shown = new Map;
   let L = vt, plan, moving = 0, wait, width = 0, started = false, left = 0, sliding = false, done = () => {}, goal = null, big = null;
   const height = (_l, _i) => HC;
-  const level_nodes = (L) => Array.from({ length: L < 0 ? N : B[L].length }, (_, i) => [L, i]);
-  const layout = (L) => {
-    const level = level_nodes(L), A = level.map((p) => at(...p)), slot = level.map((p) => height(...p) + G), P = new Float64Array(level.length + 1);
-    const find = (m) => lo(A, (a) => a > m) - 1;
+  const level_nodes = (L2) => Array.from({ length: L2 < 0 ? N : B[L2].length }, (_, i) => [L2, i]);
+  const layout = (L2) => {
+    const level = level_nodes(L2), A = level.map((p) => at(...p)), slot = level.map((p) => height(...p) + G), P = new Float64Array(level.length + 1);
+    const find2 = (m) => lo(A, (a) => a > m) - 1;
     const sums = () => slot.forEach((s, k) => P[k + 1] = P[k] + s);
     const ups = [];
-    for (let l = L + 1;l <= T; l++) {
+    for (let l = L2 + 1;l <= T; l++) {
       sums();
       ups[l] = [];
       for (let i = 0;i < B[l].length; i++) {
-        const a = find(i * 2 ** l), b = find((i + 1) * 2 ** l - 1) + 1, short = height(l, i) + G - (P[b] - P[a]);
+        const a = find2(i * 2 ** l), b = find2((i + 1) * 2 ** l - 1) + 1, short = height(l, i) + G - (P[b] - P[a]);
         short > 0 && (slot[b - 1] += short);
         ups[l].push([i, a, b]);
       }
@@ -3598,15 +3634,15 @@ function start(meta) {
     };
     level.forEach(([l, i], k) => {
       const t = P[k] + (slot[k] - G - height(l, i)) / 2;
-      bases[L + 1].push([l, i, t, height(l, i), A[k], A[k] + len(l), 0]);
+      bases[L2 + 1].push([l, i, t, height(l, i), A[k], A[k] + len(l), 0]);
       halves(l, i, t, height(l, i), 1);
     });
-    ups.forEach((list, l) => list.forEach(([i, a, b]) => bases[l + 1].push([l, i, (P[a] + P[b] - G - height(l, i)) / 2, height(l, i), at(l, i), at(l, i) + len(l), 0])));
-    const cards = bases.map((list, c) => list.map((q, x) => {
+    ups.forEach((list3, l) => list3.forEach(([i, a, b]) => bases[l + 1].push([l, i, (P[a] + P[b] - G - height(l, i)) / 2, height(l, i), at(l, i), at(l, i) + len(l), 0])));
+    const cards = bases.map((list3, c) => list3.map((q, x) => {
       const v = link(bases, c, x);
       return [...q, v, v[2] < 0 ? q[2] : Math.min(q[2], q[2] + v[1]), v[2] < 0 ? q[2] + q[3] : Math.max(q[2] + q[3], q[2] + v[1] + v[2] + 1)];
     }));
-    return { level, A, P, slot, find, cards, total: P[level.length] };
+    return { level, A, P, slot, find: find2, cards, total: P[level.length] };
   };
   const link = (cards, c, x) => {
     const [l, i, y, h, a, b] = cards[c][x], mid = y + h / 2, kids = cards[c - 1] ?? [];
@@ -3625,7 +3661,7 @@ function start(meta) {
     s.li = [l, i];
     s.append(document.createElement("h4"), document.createElement("pre"));
     s.firstChild.textContent = l < 0 ? "ROOT #" + i : "LVL" + l + " #" + at(l, i) + (l > 0 ? "-" + (at(l, i) + len(l) - 1) : "");
-    if (!has(l, i)) {
+    if (!has2(l, i)) {
       s.classList.add("none");
       x = { h: s.firstChild.textContent, t: "Not summarized yet." };
     }
@@ -3646,18 +3682,18 @@ function start(meta) {
   const near = () => [Math.floor(tree.scrollLeft / step()) - 1, (tree.scrollLeft + tree.clientWidth) / step()];
   const load = () => {
     const { scrollTop: y, clientHeight: sh } = tree, [c0, c1] = near(), want = [...shown].filter(([, s]) => !s.thin).map(([k]) => k);
-    plan.cards.forEach((list, c) => {
-      for (let x = c < c0 || c > c1 ? list.length : lo(list, (q) => q[9] >= y - 4 * sh);x < list.length && list[x][8] <= y + 5 * sh; x++) {
-        list[x][6] < 2 && want.push(list[x][0] + "." + list[x][1]);
+    plan.cards.forEach((list3, c) => {
+      for (let x = c < c0 || c > c1 ? list3.length : lo(list3, (q) => q[9] >= y - 4 * sh);x < list3.length && list3[x][8] <= y + 5 * sh; x++) {
+        list3[x][6] < 2 && want.push(list3[x][0] + "." + list3[x][1]);
       }
     });
-    const keys = [...new Set(want)].filter((k) => !got.has(k) && has(...k.split(".").map(Number)));
+    const keys = [...new Set(want)].filter((k) => !got.has(k) && has2(...k.split(".").map(Number)));
     for (let j = 0;j < keys.length; j += 200) {
-      const part = keys.slice(j, j + 200), put = (list) => {
+      const part = keys.slice(j, j + 200), put2 = (list3) => {
         if (signal.aborted)
           return;
         part.forEach((k, x) => {
-          const one = list[x] ?? { h: k, t: "(none)" };
+          const one = list3[x] ?? { h: k, t: "(none)" };
           got.set(k, one);
           const s = shown.get(k);
           if (s !== undefined) {
@@ -3667,7 +3703,7 @@ function start(meta) {
         moving || draw();
       };
       part.forEach((k) => got.set(k, null));
-      fetch("/api/tree?get=" + part.join(","), { signal }).then((r) => r.json()).then(put, () => put(part.map((k) => ({ h: k, t: "Could not load this: reload the page." }))));
+      fetch("/api/tree?get=" + part.join(","), { signal }).then((r) => r.json()).then(put2, () => put2(part.map((k) => ({ h: k, t: "Could not load this: reload the page." }))));
     }
   };
   const draw = (y = tree.scrollTop, e = 1, old) => {
@@ -3676,9 +3712,9 @@ function start(meta) {
     const p = plan, sh = tree.clientHeight, keep = new Set, [c0, c1] = near();
     cols.forEach((col, c) => {
       col.style.height = Y + Math.max(p.total, e < 1 ? old?.total ?? 0 : 0) + 4 * em + "px";
-      const list = p.cards[c];
-      for (let x = c < c0 || c > c1 ? list.length : lo(list, (q) => q[9] >= y - sh / 2);x < list.length && list[x][8] <= y + 1.5 * sh; x++) {
-        const [l, i, t, h, , , , [up, ...v]] = list[x], k = l + "." + i, w = e < 1 && old !== undefined && (old.get(k) ?? from(old, l, i));
+      const list3 = p.cards[c];
+      for (let x = c < c0 || c > c1 ? list3.length : lo(list3, (q) => q[9] >= y - sh / 2);x < list3.length && list3[x][8] <= y + 1.5 * sh; x++) {
+        const [l, i, t, h, , , , [up, ...v]] = list3[x], k = l + "." + i, w = e < 1 && old !== undefined && (old.get(k) ?? from(old, l, i));
         const s = shown.get(k) ?? make(l, i);
         s.parentNode !== col && col.append(s);
         shown.set(k, s);
@@ -3745,7 +3781,7 @@ function start(meta) {
     s.classList.add("big");
     s.style.height = "auto";
     pre.style.flex = "none";
-    const need = s.offsetHeight, top0 = Y + s.v[0], { scrollTop: st, clientHeight: sh } = tree;
+    const need = s.offsetHeight, top0 = Y + s.v[0], st = tree.scrollTop, sh = tree.clientHeight;
     s.style.height = pre.style.flex = "";
     const hb = Math.min(need, Math.max(HC, sh - Y - G));
     if (hb <= HC + 1)
@@ -3809,7 +3845,7 @@ function start(meta) {
       return moving || redo();
     shut(true);
     const a = anchor(), old = new Map, y0 = tree.scrollTop, t0 = performance.now(), me = ++moving, D = calm.matches ? 0 : 300;
-    plan.cards.forEach((list) => list.forEach((q) => old.set(q[0] + "." + q[1], [q[2], q[3], ...q[7].slice(1)])));
+    plan.cards.forEach((list3) => list3.forEach((q) => old.set(q[0] + "." + q[1], [q[2], q[3], ...q[7].slice(1)])));
     shown.forEach((s, k) => old.set(k, s.v));
     old.total = plan.total;
     L = to;
@@ -4047,12 +4083,12 @@ function show(pic) {
   V.w = V.h = V.swipe = 0;
   must(D.querySelector(".name"), ".name").textContent = pic.name;
   must(D.querySelector(".zoom"), ".zoom").textContent = "";
-  const get = find(D, ".get", HTMLAnchorElement);
-  get.href = pic.src;
-  get.download = file_name(pic);
-  const [list, k] = place();
+  const get2 = find(D, ".get", HTMLAnchorElement);
+  get2.href = pic.src;
+  get2.download = file_name(pic);
+  const [list3, k] = place();
   find(D, ".prev", HTMLElement).hidden = k <= 0;
-  find(D, ".next", HTMLElement).hidden = k < 0 || k >= list.length - 1;
+  find(D, ".next", HTMLElement).hidden = k < 0 || k >= list3.length - 1;
   find(D, ".why", HTMLElement).hidden = true;
   IMG.classList.add("wait");
   IMG.alt = pic.name;
@@ -4083,16 +4119,16 @@ function place() {
   if (V.pic === null || !V.pic.log) {
     return [[], -1];
   }
-  const list = [...document.querySelectorAll(PICS)].flatMap((img) => viewer_pic(img) ?? []);
+  const list3 = [...document.querySelectorAll(PICS)].flatMap((img) => viewer_pic(img) ?? []);
   const src = V.pic.src;
-  const at = list.flatMap((p, k) => p.src === src ? [k] : []);
-  const k = at.reduce((best, k) => best < 0 || Math.abs(k - V.n) < Math.abs(best - V.n) ? k : best, -1);
+  const at = list3.flatMap((p, k2) => p.src === src ? [k2] : []);
+  const k = at.reduce((best, k2) => best < 0 || Math.abs(k2 - V.n) < Math.abs(best - V.n) ? k2 : best, -1);
   V.n = k;
-  return [list, k];
+  return [list3, k];
 }
 function step(d) {
-  const [list, k] = place();
-  const to = k < 0 ? undefined : list[k + d];
+  const [list3, k] = place();
+  const to = k < 0 ? undefined : list3[k + d];
   if (to === undefined) {
     return false;
   }
@@ -4183,8 +4219,8 @@ function move(ev) {
     if (!G.moved) {
       return;
     }
-    const [list, k] = fitted() && !G.many ? place() : [[], -1];
-    if (k >= 0 && list.length > 1) {
+    const [list3, k] = fitted() && !G.many ? place() : [[], -1];
+    if (k >= 0 && list3.length > 1) {
       V.swipe += now.x - was.x;
     } else {
       V.x += now.x - was.x;
@@ -4501,7 +4537,7 @@ function chat() {
 }
 function signed() {
   document.body.className = "";
-  BOX2.dataset.placeholder = HINT;
+  BOX2.dataset.placeholder = hint(v);
   box_set(sessionStorage.getItem(kept("draft")) ?? "");
   renewed();
 }
@@ -4669,8 +4705,8 @@ function roam(ev) {
   ev.preventDefault();
   const rows = [...menu.querySelectorAll("button")];
   const n = rows.length;
-  const at = rows.indexOf(document.activeElement);
-  const to = { ArrowDown: at + 1, ArrowUp: at - 1 + n, Home: 0, End: n - 1 };
+  const at2 = rows.indexOf(document.activeElement);
+  const to = { ArrowDown: at2 + 1, ArrowUp: at2 - 1 + n, Home: 0, End: n - 1 };
   rows[to[ev.key] % n].focus();
 }
 function left(ev) {
@@ -4712,7 +4748,7 @@ function unfold(msg) {
 var FRAMED = new WeakSet;
 function frames(all = false) {
   for (const f of document.querySelectorAll("#log iframe.page")) {
-    const fit = () => {
+    const fit2 = () => {
       const root = f.contentDocument?.documentElement;
       if (root !== undefined && f.contentDocument?.URL !== "about:blank") {
         f.style.height = Math.ceil(root.getBoundingClientRect().height) + 2 + "px";
@@ -4720,9 +4756,9 @@ function frames(all = false) {
     };
     if (!FRAMED.has(f)) {
       FRAMED.add(f);
-      f.addEventListener("load", fit);
+      f.addEventListener("load", fit2);
     } else if (all) {
-      fit();
+      fit2();
     }
   }
 }
@@ -4741,20 +4777,20 @@ async function mic() {
     return;
   }
   const mimeType = ["audio/webm", "audio/mp4"].find((type) => MediaRecorder.isTypeSupported(type));
-  const rec = new MediaRecorder(stream, { mimeType });
+  const rec2 = new MediaRecorder(stream, { mimeType });
   const parts = [];
-  rec.ondataavailable = (ev) => parts.push(ev.data);
-  rec.onstop = () => {
+  rec2.ondataavailable = (ev) => parts.push(ev.data);
+  rec2.onstop = () => {
     stream.getTracks().forEach((track) => track.stop());
     P.rec = null;
-    words(new Blob(parts, { type: rec.mimeType }));
+    words(new Blob(parts, { type: rec2.mimeType }));
   };
-  rec.start();
-  P.rec = rec;
+  rec2.start();
+  P.rec = rec2;
   draw2(false);
-  meter(stream, rec);
+  meter(stream, rec2);
 }
-function meter(stream, rec) {
+function meter(stream, rec2) {
   const audio = new AudioContext;
   const probe = audio.createAnalyser();
   audio.createMediaStreamSource(stream).connect(probe);
@@ -4762,35 +4798,35 @@ function meter(stream, rec) {
   const canvas = $2(".voice canvas", HTMLCanvasElement);
   const pen = must(canvas.getContext("2d"), "a 2d canvas");
   const levels = [];
-  const start = performance.now();
+  const start2 = performance.now();
   const frame = (now) => {
-    if (P.rec !== rec) {
+    if (P.rec !== rec2) {
       audio.close();
       return;
     }
     probe.getByteTimeDomainData(buf);
     const power = buf.reduce((sum, b) => sum + ((b - 128) / 128) ** 2, 0) / buf.length;
     const level = Math.min(1, Math.sqrt(power) * 5);
-    const slot = Math.floor((now - start) / 50);
+    const slot = Math.floor((now - start2) / 50);
     levels[slot] = Math.max(levels[slot] ?? 0, level);
-    const secs = Math.floor((now - start) / 1000);
+    const secs = Math.floor((now - start2) / 1000);
     $2(".voice span").textContent = Math.floor(secs / 60) + ":" + String(secs % 60).padStart(2, "0");
     const dpr = devicePixelRatio;
     const w = canvas.width = canvas.clientWidth * dpr;
     const h = canvas.height = canvas.clientHeight * dpr;
     pen.fillStyle = getComputedStyle(canvas).color;
-    const step = 5 * dpr;
-    for (let i = 0;i * step < w && slot - i >= 0; i++) {
+    const step2 = 5 * dpr;
+    for (let i = 0;i * step2 < w && slot - i >= 0; i++) {
       const bar = Math.max(2 * dpr, (levels[slot - i] ?? 0) * h);
-      pen.fillRect(w - (i + 1) * step, (h - bar) / 2, 3 * dpr, bar);
+      pen.fillRect(w - (i + 1) * step2, (h - bar) / 2, 3 * dpr, bar);
     }
     requestAnimationFrame(frame);
   };
   requestAnimationFrame(frame);
 }
 function words(audio) {
-  const act = { $: "voice", type: audio.type, body: () => audio };
-  link_send(v, act, heard);
+  const act2 = { $: "voice", type: audio.type, body: () => audio };
+  link_send(v, act2, heard);
   draw2(false);
 }
 function heard(out) {
@@ -4830,9 +4866,9 @@ function in_use(off = false) {
 function me() {
   return fetch("/api/me", { signal: AbortSignal.timeout(ME_WAIT) }).catch(() => null);
 }
-async function lost(up) {
+async function lost(up2) {
   draw2(true);
-  const res = up ? null : await me();
+  const res = up2 ? null : await me();
   if (res !== null && res.status === 401) {
     location.href = "/";
     return false;
@@ -4856,6 +4892,7 @@ function hear(msg) {
   P.rows ||= msg.$ === "state" ? v.agents.join() !== agents || JSON.stringify(v.sent) !== sent : msg.$ !== "delta" && msg.$ !== "live";
   if (msg.$ === "state") {
     renew_due(msg.build);
+    BOX2.dataset.placeholder = hint(v);
   }
   import_welcome();
   draw2(true);
@@ -4945,9 +4982,9 @@ function import_took(name, read, status) {
 }
 async function import_welcome() {
   await INTRO;
-  const key = kept("welcomed");
-  if (localStorage.getItem(key) === null && v.pick !== null && v.parts.length === OPENING && v.importing === null && DESK.matches) {
-    localStorage.setItem(key, "1");
+  const key2 = kept("welcomed");
+  if (localStorage.getItem(key2) === null && v.pick !== null && v.parts.length === OPENING && v.importing === null && DESK.matches) {
+    localStorage.setItem(key2, "1");
     import_open(true);
   }
 }
@@ -5006,10 +5043,10 @@ function import_draw(status) {
   const sessions = reads.flatMap((read) => read.sessions);
   const plan = import_plan2();
   const msgs = plan.msgs;
-  const left = reads.reduce((n, read) => n + read.moved, 0);
-  const moved = left === 0 ? "" : " (" + left + (left === 1 ? " file" : " files") + " changed while read: choose the folder again to add them)";
+  const left2 = reads.reduce((n, read) => n + read.moved, 0);
+  const moved = left2 === 0 ? "" : " (" + left2 + (left2 === 1 ? " file" : " files") + " changed while read: choose the folder again to add them)";
   const found = sessions.length === 0 ? "" : plan.first === "" ? OLD : import_count(msgs, "new ");
-  const day = (at) => new Date(at).getUTCDate() + " " + new Date(at).toLocaleDateString("en-US", { month: "short", year: "numeric", timeZone: "UTC" });
+  const day = (at2) => new Date(at2).getUTCDate() + " " + new Date(at2).toLocaleDateString("en-US", { month: "short", year: "numeric", timeZone: "UTC" });
   BACK.min = String(Math.floor(Date.parse(plan.first || new Date().toISOString()) / 86400000));
   BACK.max = String(Math.floor(Date.now() / 86400000));
   $2("#import .since .from").textContent = day(import_since() || plan.first || Date.now());
@@ -5019,10 +5056,10 @@ function import_draw(status) {
   $2("#import .tools").hidden = !sessions.some((s) => s.heads.some((m) => m.kind === "tool" || m.kind === "echo"));
   $2("#import .found").textContent = found + moved;
   for (const src of import_srcs()) {
-    const list = must(src.querySelector(".sessions"), "#import .sessions");
+    const list3 = must(src.querySelector(".sessions"), "#import .sessions");
     const shown = plan.sessions.filter((s) => s.app === src.dataset.app);
-    markup(list, shown.map((s) => `<label title="${esc(s.where + ", " + import_count(s.heads.length, ""))}"><input type="checkbox" name="session" value="${esc(import_id(s))}">${import_cells(s).map((c) => `<span>${esc(c)}</span>`).join("")}</label>`));
-    list.querySelectorAll("input").forEach((box) => box.checked = !IMPORT.off.has(box.value));
+    markup(list3, shown.map((s) => `<label title="${esc(s.where + ", " + import_count(s.heads.length, ""))}"><input type="checkbox" name="session" value="${esc(import_id(s))}">${import_cells(s).map((c) => `<span>${esc(c)}</span>`).join("")}</label>`));
+    list3.querySelectorAll("input").forEach((box) => box.checked = !IMPORT.off.has(box.value));
     const on = shown.filter((s) => !IMPORT.off.has(import_id(s))).length;
     find(src, ".pick", HTMLElement).hidden = shown.length === 0;
     must(src.querySelector(".pick summary"), "#import .pick summary").textContent = (on < shown.length ? on + " of " : shown.length > 1 ? "All " : "") + shown.length + (shown.length === 1 ? " session" : " sessions") + " picked · choose";
@@ -5057,15 +5094,15 @@ function markup(el, htmls) {
     had.set(html, same);
   }
   const kids = htmls.map((html) => had.get(html)?.shift() ?? html_parse(html));
-  for (const left of had.values()) {
-    left.forEach((child) => child.remove());
+  for (const left2 of had.values()) {
+    left2.forEach((child) => child.remove());
   }
-  let at = el.firstElementChild;
+  let at2 = el.firstElementChild;
   for (const kid of kids) {
-    if (kid === at) {
-      at = at.nextElementSibling;
+    if (kid === at2) {
+      at2 = at2.nextElementSibling;
     } else {
-      el.insertBefore(kid, at);
+      el.insertBefore(kid, at2);
     }
   }
 }
@@ -5094,7 +5131,7 @@ function paint() {
   }
   const doc = document.documentElement;
   const follow = SCROLL.stick && SCROLL.end;
-  const at = P.rows && !follow ? anchor() : null;
+  const at2 = P.rows && !follow ? anchor() : null;
   const shown = shown_key();
   P.frame = 0;
   SCROLL.stick = true;
@@ -5108,10 +5145,10 @@ function paint() {
   box_sizes($2("#log .tail"));
   folds();
   frames();
-  const back = RENEW.back === null ? null : document.querySelector(`#log [data-a="${RENEW.back.a}"]`);
-  if (back !== null && RENEW.back !== null) {
+  const back2 = RENEW.back === null ? null : document.querySelector(`#log [data-a="${RENEW.back.a}"]`);
+  if (back2 !== null && RENEW.back !== null) {
     P.shown = shown;
-    scrollBy(0, back.getBoundingClientRect().top - RENEW.back.top);
+    scrollBy(0, back2.getBoundingClientRect().top - RENEW.back.top);
     RENEW.back = null;
     SCROLL.end = at_end();
     return;
@@ -5126,13 +5163,13 @@ function paint() {
     scrollTo(0, doc.scrollHeight);
     return;
   }
-  if (at === null) {
+  if (at2 === null) {
     return;
   }
   const rows = [...document.querySelectorAll("#log [data-a]")];
-  const el = rows.filter((r) => Number(r.dataset.a) <= at.a).pop();
+  const el = rows.filter((r) => Number(r.dataset.a) <= at2.a).pop();
   if (el !== undefined) {
-    scrollBy(0, el.getBoundingClientRect().top - at.top);
+    scrollBy(0, el.getBoundingClientRect().top - at2.top);
     SCROLL.end = at_end();
   }
 }
@@ -5152,7 +5189,7 @@ function bars() {
   }
   const on = view_typing(v);
   const stop = on && view_stoppable(v) && box_blank();
-  const tabs = view_tabs(v);
+  const tabs2 = view_tabs(v);
   const send = $2(".send", HTMLButtonElement);
   $2(".net").hidden = v.up;
   $2(".timers").hidden = v.timers.length === 0;
@@ -5172,8 +5209,8 @@ function bars() {
     $2("#pick [data-knob=" + knob + "]").focus();
   }
   mcp_draw();
-  $2("#tabs").hidden = tabs.length < 2;
-  markup($2("#tabs"), tabs_html(tabs));
+  $2("#tabs").hidden = tabs2.length < 2;
+  markup($2("#tabs"), tabs_html(tabs2));
   import_bar();
 }
 function anchor() {
@@ -5216,18 +5253,18 @@ function go(path) {
 function route() {
   const page = PAGES.includes(location.pathname);
   const tree = location.pathname === TREE;
-  const chat = !page && !tree;
-  if (!chat && !$2("#log").hidden && SCROLL.away === null) {
+  const chat2 = !page && !tree;
+  if (!chat2 && !$2("#log").hidden && SCROLL.away === null) {
     SCROLL.away = { y: scrollY, end: SCROLL.end };
   }
-  $2("#log").hidden = !chat;
+  $2("#log").hidden = !chat2;
   document.body.classList.toggle("account", page);
   document.body.classList.toggle("tree", tree);
   $2("#account").hidden = !page;
   $2("#tree").hidden = !tree;
   P.at = location.pathname + location.hash;
-  P.shown = chat && SCROLL.away !== null ? shown_key() : location.pathname;
-  if (chat && SCROLL.away !== null) {
+  P.shown = chat2 && SCROLL.away !== null ? shown_key() : location.pathname;
+  if (chat2 && SCROLL.away !== null) {
     SCROLL.end = SCROLL.away.end;
     P.rows = true;
     paint();
@@ -5243,7 +5280,7 @@ function route() {
   } else {
     tree_hide();
   }
-  draw2(chat && SCROLL.end);
+  draw2(chat2 && SCROLL.end);
 }
 function popped() {
   if (location.pathname + location.hash !== P.at) {
@@ -5254,10 +5291,11 @@ function popped() {
 }
 async function account() {
   const el = $2("#account");
-  const [got, set] = await Promise.all([fetch("/api/prompts").catch(() => null), fetch("/api/settings").catch(() => null)]);
+  const [got, set, ps] = await Promise.all(["/api/prompts", "/api/settings", "/api/personalities"].map((path) => fetch(path).catch(() => null)));
   const prompts = got !== null && got.ok ? await got.json().catch(() => null) : null;
+  const people = ps !== null && ps.ok ? await ps.json().catch(() => null) : null;
   const push = await notify_state().catch(() => null);
-  el.innerHTML = account_html(prompts, push);
+  el.innerHTML = account_html(prompts, people, push);
   RENEW.dirty.clear();
   el.oninput = (ev) => {
     const form = ev.target.closest("form");
@@ -5267,8 +5305,9 @@ async function account() {
   };
   el.querySelectorAll("form.prompt").forEach((form) => form.onsubmit = (ev) => {
     ev.preventDefault();
-    account_prompt(form);
+    form.classList.contains("person") ? persona_save(form) : account_prompt(form);
   });
+  el.querySelectorAll(".use").forEach((use) => use.onclick = () => void persona_use(use));
   mcp_draw();
   el.querySelectorAll(".retry").forEach((retry) => retry.onclick = () => void account());
   $2("#account .out").onclick = () => void signout();
@@ -5321,6 +5360,38 @@ async function account_prompt(form) {
   }
   draw2(false);
 }
+async function persona_save(form) {
+  const why = must(form.querySelector(".why"), "the personality's why");
+  const save = find(form, "button", HTMLButtonElement);
+  const data = new FormData(form);
+  const field = (key2) => {
+    const x = data.get(key2);
+    return typeof x === "string" ? x : "";
+  };
+  const sent = { ...form.dataset.id === undefined ? {} : { id: form.dataset.id }, name: field("name"), pronouns: field("pronouns"), text: field("text") };
+  save.disabled = true;
+  RENEW.saving++;
+  const out = await post("/api/personalities", sent);
+  RENEW.saving--;
+  save.disabled = false;
+  form.classList.toggle("bad", out.error !== undefined);
+  if (out.error !== undefined) {
+    why.textContent = text_of(out.error);
+    return;
+  }
+  RENEW.dirty.delete(form);
+  await account();
+}
+async function persona_use(use) {
+  use.disabled = true;
+  const out = await post("/api/personalities", { use: use.dataset.id });
+  if (out.error !== undefined) {
+    use.disabled = false;
+    toast(text_of(out.error));
+    return;
+  }
+  await account();
+}
 async function notify_state() {
   P.push = null;
   if (APP !== null) {
@@ -5344,12 +5415,12 @@ async function notify_state() {
   P.push = { reg, key: out.key };
   return out.on && notify_keyed(sub, out.key) ? "on" : "off";
 }
-function notify_keyed(sub, key) {
+function notify_keyed(sub, key2) {
   const had = sub?.options.applicationServerKey;
-  return had != null && notify_bytes(key).join() === new Uint8Array(had).join();
+  return had != null && notify_bytes(key2).join() === new Uint8Array(had).join();
 }
-function notify_bytes(key) {
-  return Uint8Array.from(atob(key.replace(/-/g, "+").replace(/_/g, "/")), (c) => c.charCodeAt(0));
+function notify_bytes(key2) {
+  return Uint8Array.from(atob(key2.replace(/-/g, "+").replace(/_/g, "/")), (c) => c.charCodeAt(0));
 }
 async function notify_sub() {
   const reg = await navigator.serviceWorker?.getRegistration();
@@ -5370,8 +5441,8 @@ async function notify(on) {
   }
   account();
 }
-async function notify_on(reg, key) {
-  const bytes = notify_bytes(key);
+async function notify_on(reg, key2) {
+  const bytes = notify_bytes(key2);
   const ask = () => reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: bytes });
   const sub = await ask().catch(async (err) => {
     const old = await reg.pushManager.getSubscription();
@@ -5397,30 +5468,30 @@ function settings_draw(page) {
   const form = $2("#account form.settings", HTMLFormElement);
   const rows = new Map(page.settings.map((r) => [r.key, r]));
   const unset = new Set;
-  const profs = Object.entries(page.profiles ?? {}).map(([name, list]) => [name, [...list]]);
+  const profs = Object.entries(page.profiles ?? {}).map(([name, list3]) => [name, [...list3]]);
   const box = form.querySelector(".profiles .field");
   const names = () => profs.map(([name]) => name.trim()).filter((name) => name !== "");
-  const listed = (key) => {
-    const boxes = [...form.querySelectorAll(`input[name="${key}"]`)];
-    return boxes.length === 0 ? list2(rows.get(key)?.value ?? "") : boxes.filter((b) => b.checked).map((b) => b.value);
+  const listed = (key2) => {
+    const boxes = [...form.querySelectorAll(`input[name="${key2}"]`)];
+    return boxes.length === 0 ? list2(rows.get(key2)?.value ?? "") : boxes.filter((b) => b.checked).map((b) => b.value);
   };
   const picks = () => {
     const vendors = listed("vendors");
-    form.querySelectorAll(".opt[data-vendor]:not([data-vendor=''])").forEach((o) => o.hidden = !(o.dataset.vendor ?? "").split(" ").some((v) => vendors.includes(v)));
-    for (const key of PICKS) {
-      const value = form.querySelector(`input[name="${key}"]`);
+    form.querySelectorAll(".opt[data-vendor]:not([data-vendor=''])").forEach((o) => o.hidden = !(o.dataset.vendor ?? "").split(" ").some((v2) => vendors.includes(v2)));
+    for (const key2 of PICKS) {
+      const value = form.querySelector(`input[name="${key2}"]`);
       const four = value?.parentElement?.querySelector(".four");
       if (value && four) {
-        const focus = document.activeElement?.name;
-        four.innerHTML = picks_html(key, vendors, listed("models"), value.value, key === "agents" ? "The chat's pick" : null, names());
-        four.querySelector(`select[name="${focus}"]`)?.focus();
+        const focus2 = document.activeElement?.name;
+        four.innerHTML = picks_html(key2, vendors, listed("models"), value.value, key2 === "agents" ? "The chat's pick" : null, names());
+        four.querySelector(`select[name="${focus2}"]`)?.focus();
       }
     }
-    const keyless = vendors.filter((v) => {
-      const name = VENDOR_KEY[v];
-      const key = page.keys.find((k) => k.name === name);
-      const typed = form.querySelector(`[name="key.${name}"]`)?.value.trim() ?? "";
-      return key !== undefined && (key.from === "default" || unset.has("key." + name)) && typed === "";
+    const keyless = vendors.filter((v2) => {
+      const name = VENDOR_KEY[v2];
+      const key2 = page.keys.find((k) => k.name === name);
+      const typed2 = form.querySelector(`[name="key.${name}"]`)?.value.trim() ?? "";
+      return key2 !== undefined && (key2.from === "default" || unset.has("key." + name)) && typed2 === "";
     });
     const warn = form.querySelector(".warn");
     if (warn !== null) {
@@ -5450,34 +5521,34 @@ function settings_draw(page) {
       return;
     }
     const el = must(btn.closest(".set"), "the reset's setting");
-    const key = el.dataset.key ?? "";
-    const r = rows.get(key);
+    const key2 = el.dataset.key ?? "";
+    const r = rows.get(key2);
     el.querySelectorAll("input[type=checkbox]").forEach((b) => b.checked = list2(r?.def ?? "").includes(b.value));
     el.querySelectorAll("input:not([type=checkbox]), textarea").forEach((i) => i.value = r?.def ?? "");
     picks();
-    unset.add(key);
+    unset.add(key2);
     el.classList.add("unset");
     btn.hidden = true;
-    must(el.querySelector(".from"), "the setting's from").insertAdjacentText("beforeend", key.startsWith("key.") ? " · removed once saved" : " · the default once saved");
+    must(el.querySelector(".from"), "the setting's from").insertAdjacentText("beforeend", key2.startsWith("key.") ? " · removed once saved" : " · the default once saved");
   };
   form.onsubmit = (ev) => {
     ev.preventDefault();
     settings_save(form, page, unset, listed, profs);
   };
-  const profs_draw = (focus) => {
+  const profs_draw = (focus2) => {
     if (box !== null) {
       box.innerHTML = profiles_html(profs, offered(listed("vendors"), listed("models")));
-      (focus === undefined ? null : box.querySelector(focus) ?? box.querySelector(".pnew"))?.focus();
+      (focus2 === undefined ? null : box.querySelector(focus2) ?? box.querySelector(".pnew"))?.focus();
     }
   };
-  const profs_changed = (focus) => {
-    profs_draw(focus);
+  const profs_changed = (focus2) => {
+    profs_draw(focus2);
     must(box?.closest(".set")?.querySelector(".err"), "the profiles' err").textContent = "";
     picks();
   };
   const renamed = (was, now) => {
-    for (const key of PICKS) {
-      const value = form.querySelector(`input[name="${key}"]`);
+    for (const key2 of PICKS) {
+      const value = form.querySelector(`input[name="${key2}"]`);
       if (value !== null && was.trim() !== "" && now !== "" && value.value === was.trim()) {
         value.value = now;
       }
@@ -5521,9 +5592,9 @@ function settings_draw(page) {
     ev.preventDefault();
     const [i, j] = [Number(grip.dataset.i), Number(grip.dataset.j)];
     const k = j + (ev.key === "ArrowUp" ? -1 : 1);
-    const list = profs[i][1];
-    if (k >= 0 && k < list.length) {
-      [list[j], list[k]] = [list[k], list[j]];
+    const list3 = profs[i][1];
+    if (k >= 0 && k < list3.length) {
+      [list3[j], list3[k]] = [list3[k], list3[j]];
       profs_changed(`.grip[data-i="${i}"][data-j="${k}"]`);
     }
   });
@@ -5537,24 +5608,24 @@ function settings_draw(page) {
     const ol = must(li.parentElement, "the grip's list");
     const [i, from] = [Number(grip.dataset.i), Number(grip.dataset.j)];
     li.classList.add("drag");
-    const move = (e) => {
+    const move2 = (e) => {
       const below = [...ol.children].find((c) => c !== li && e.clientY < c.getBoundingClientRect().top + c.getBoundingClientRect().height / 2);
       if (below !== li.nextElementSibling || below === undefined) {
         ol.insertBefore(li, below ?? null);
       }
     };
-    const up = () => {
-      window.removeEventListener("pointermove", move);
-      window.removeEventListener("pointerup", up);
-      window.removeEventListener("pointercancel", up);
+    const up2 = () => {
+      window.removeEventListener("pointermove", move2);
+      window.removeEventListener("pointerup", up2);
+      window.removeEventListener("pointercancel", up2);
       const to = [...ol.children].indexOf(li);
-      const list = profs[i][1];
-      list.splice(to, 0, ...list.splice(from, 1));
+      const list3 = profs[i][1];
+      list3.splice(to, 0, ...list3.splice(from, 1));
       profs_changed(`.grip[data-i="${i}"][data-j="${to}"]`);
     };
-    window.addEventListener("pointermove", move);
-    window.addEventListener("pointerup", up);
-    window.addEventListener("pointercancel", up);
+    window.addEventListener("pointermove", move2);
+    window.addEventListener("pointerup", up2);
+    window.addEventListener("pointercancel", up2);
   });
   profs_draw();
   picks();
@@ -5575,24 +5646,24 @@ async function settings_save(form, page, unset, listed, profs) {
     }
   }
   for (const k of page.keys) {
-    const typed = form.querySelector(`[name="key.${k.name}"]`)?.value.trim() ?? "";
+    const typed2 = form.querySelector(`[name="key.${k.name}"]`)?.value.trim() ?? "";
     if (unset.has("key." + k.name)) {
       keys[k.name] = null;
-    } else if (typed !== "") {
-      keys[k.name] = typed;
+    } else if (typed2 !== "") {
+      keys[k.name] = typed2;
     }
   }
   const why = must(form.querySelector(".save .why"), "the save's why");
   form.querySelectorAll(".err").forEach((e) => e.textContent = "");
   let profiles;
   if (page.profiles != null) {
-    const now = profs.map(([name, list]) => [name.trim(), list]);
+    const now = profs.map(([name, list3]) => [name.trim(), list3]);
     const all = now.map(([name]) => name);
-    const bad = all.includes("") ? "Name each profile." : all.some((name, k) => all.indexOf(name) !== k) ? "Two profiles have the same name." : now.some(([, list]) => list.length === 0) ? "Add a model to each profile." : null;
+    const bad = all.includes("") ? "Name each profile." : all.some((name, k) => all.indexOf(name) !== k) ? "Two profiles have the same name." : now.some(([, list3]) => list3.length === 0) ? "Add a model to each profile." : null;
     if (bad !== null) {
-      const at = find(form, ".profiles", HTMLElement);
-      must(at.querySelector(".err"), "the profiles' err").textContent = bad;
-      at.scrollIntoView({ block: "center" });
+      const at2 = find(form, ".profiles", HTMLElement);
+      must(at2.querySelector(".err"), "the profiles' err").textContent = bad;
+      at2.scrollIntoView({ block: "center" });
       return;
     }
     const was = JSON.stringify(page.profiles);
@@ -5602,21 +5673,21 @@ async function settings_save(form, page, unset, listed, profs) {
     why.textContent = "Nothing changed.";
     return;
   }
-  const go = find(form, ".go", HTMLButtonElement);
-  go.disabled = true;
+  const go2 = find(form, ".go", HTMLButtonElement);
+  go2.disabled = true;
   why.textContent = "";
   RENEW.saving++;
   const out = await post("/api/settings", { version: page.version, set, keys, ...profiles === undefined ? {} : { profiles } });
   RENEW.saving--;
-  go.disabled = false;
+  go2.disabled = false;
   if (!out.ok) {
-    const at = out.key === undefined ? null : form.querySelector(`.set[data-key="${text_of(out.key, "null")}"]`);
-    (at?.querySelector(".err") ?? why).textContent = text_of(out.error, "Could not save.");
-    (at ?? why).scrollIntoView({ block: "center" });
+    const at2 = out.key === undefined ? null : form.querySelector(`.set[data-key="${text_of(out.key, "null")}"]`);
+    (at2?.querySelector(".err") ?? why).textContent = text_of(out.error, "Could not save.");
+    (at2 ?? why).scrollIntoView({ block: "center" });
     return;
   }
   const done = out;
-  const later = done.saved.filter((key) => page.settings.find((r) => r.key === key)?.apply === "restart");
+  const later = done.saved.filter((key2) => page.settings.find((r) => r.key === key2)?.apply === "restart");
   settings_draw(done);
   RENEW.dirty.delete(form);
   RENEW.since = true;
@@ -5663,29 +5734,29 @@ async function renew(hidden = false) {
     RENEW.going = false;
     return;
   }
-  const chat = !$2("#log").hidden;
-  const back = { at: chat && !SCROLL.end ? anchor() : null, y: chat ? null : scrollY, away: SCROLL.away, caret: box_caret(), focus: box_focused(), open: [...SCROLL.open] };
-  sessionStorage.setItem(kept("back"), JSON.stringify(back));
+  const chat2 = !$2("#log").hidden;
+  const back2 = { at: chat2 && !SCROLL.end ? anchor() : null, y: chat2 ? null : scrollY, away: SCROLL.away, caret: box_caret(), focus: box_focused(), open: [...SCROLL.open] };
+  sessionStorage.setItem(kept("back"), JSON.stringify(back2));
   sessionStorage.setItem(kept("build"), (v.build ?? "") + " " + (tries + 1));
   location.reload();
 }
 function renewed() {
   const text = sessionStorage.getItem(kept("back"));
   sessionStorage.removeItem(kept("back"));
-  const back = text === null ? null : JSON.parse(text);
-  if (back === null) {
+  const back2 = text === null ? null : JSON.parse(text);
+  if (back2 === null) {
     return;
   }
-  if (back.focus && DESK.matches) {
+  if (back2.focus && DESK.matches) {
     box_focus();
   }
-  box_place(back.caret[0], back.caret[1]);
-  back.open.forEach((id) => SCROLL.open.add(id));
-  RENEW.back = back.at;
-  SCROLL.away = back.away;
+  box_place(back2.caret[0], back2.caret[1]);
+  back2.open.forEach((id) => SCROLL.open.add(id));
+  RENEW.back = back2.at;
+  SCROLL.away = back2.away;
   const end = Date.now() + 3000;
   const y = () => {
-    const to = back.y;
+    const to = back2.y;
     if (to !== null) {
       if (document.documentElement.scrollHeight >= to + innerHeight || Date.now() > end) {
         scrollTo(0, to);

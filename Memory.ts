@@ -4,6 +4,7 @@ import { clip_page, clip_pages } from "./Clip.ts";
 import * as config from "./Config.ts";
 import { Disk } from "./Disk.ts";
 import { err_code, err_why } from "./Err.ts";
+import { Personality } from "./Personality.ts";
 import { Pick } from "./Pick.ts";
 import * as names from "./Names.ts";
 import type { Timer } from "./Timer.ts";
@@ -116,7 +117,7 @@ const NODE_RULER = "-".repeat(NODE);
 
 const WAIT = "(not summarized yet: zoom it)";
 
-const TALKING = "Conversation mode is on from message {id}: from there on, the user's and Unii's messages are whole, word for word (zoom on one only to see an image it names); tool calls, their output, notes and reports stay summary lines.";
+const TALKING = "Conversation mode is on from message {id}: from there on, the user's and {name}'s messages are whole, word for word (zoom on one only to see an image it names); tool calls, their output, notes and reports stay summary lines.";
 
 const IMAGES = "/docs/images/";
 
@@ -999,7 +1000,7 @@ ${Memory.cut(line)}| ← LIMIT`;
       return text === null ? [] : [Memory.line(part, text) + "\n"];
     });
     const said = Array.from({ length: Math.max(0, end - talk) }, (_, k) => Memory.talk_line(mem, talk + k) + "\n");
-    return [...lines, TALKING.replace("{id}", String(talk)) + "\n", ...said];
+    return [...lines, Personality.fill(TALKING.replace("{id}", String(talk))) + "\n", ...said];
   }
 
   export function upto(mem: Memory, part: Part, end: number): Part[] {

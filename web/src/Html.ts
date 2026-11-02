@@ -147,7 +147,7 @@ export function timers_html(timers: Timer.Timer[]): string[] {
   });
 }
 
-export function account_html(prompts: View.Prompts | null, notify: Notify | null = null): string {
+export function account_html(prompts: View.Prompts | null, people: View.Personalities | null, notify: Notify | null = null): string {
   const item    = (what: string, note: string, act: string) => `<div class="item"><p>${what}${note === "" ? "" : `<small>${note}</small>`}</p>${act}</div>`;
   const acts    = [
     item("This browser", "Signed in to this server.", `<button class="chip out">Sign out</button>`),
@@ -155,10 +155,34 @@ export function account_html(prompts: View.Prompts | null, notify: Notify | null
     item("Export memory", "The chat and its summaries, in one file.", `<a class="chip" href="/export">Download</a>`),
   ];
   const unread  = item("Could not read the prompts.", "", `<button class="chip retry">Try again</button>`);
-  const mine    = section_html("Prompts", prompts === null ? unread : prompt_html("prompt", prompts.prompt.text, "The user prompt: Unii's system prompt in every turn; its subagents get it too once you change it. Add who you are and how you want work done at its end. prompt.md in the server's folder; empty: the built-in one.")
-    + prompt_html("compact", prompts.compact.text, "The compaction prompt: all a summary of the memory gets, nothing else. compact.md in the server's folder; empty: the built-in one."));
+  const mine    = section_html("Prompts", prompts === null ? unread : prompt_html("prompt", prompts.prompt.text, "The user prompt: the system prompt in every turn, for every personality, where {name} and {pronouns} become the one in use's; its subagents get it too once you change it. Add who you are and how you want work done at its end. prompt.md in the server's folder; empty: the built-in one.")
+    + prompt_html("compact", prompts.compact.text, "The compaction prompt: all a summary of the memory gets, nothing else; {name} and {pronouns} as above. compact.md in the server's folder; empty: the built-in one."));
   const mcp     = section_html("MCP servers", `<div class="mcp"></div>`);
-  return `<a class="back" href="/" data-go="/">← Chat</a><h1>Settings</h1>` + mine + section_html("This browser", acts.join("")) + mcp + `<div class="owned"></div>`;
+  return `<a class="back" href="/" data-go="/">← Chat</a><h1>Settings</h1>` + personalities_html(people) + mine + section_html("This browser", acts.join("")) + mcp + `<div class="owned"></div>`;
+}
+
+function personalities_html(people: View.Personalities | null): string {
+  if (people === null) {
+    return section_html("Personalities", `<div class="item"><p>Could not read the personalities.</p><button class="chip retry">Try again</button></div>`);
+  }
+  const sets = `<datalist id="pronoun-sets">${people.pronouns.map((p) => `<option value="${esc(p)}">`).join("")}</datalist>`;
+  const row  = (p: View.Persona) => {
+    const here = p.id === people.active;
+    const use  = here ? `<span class="chip on">In use</span>` : `<button class="chip use" data-id="${esc(p.id)}">Switch</button>`;
+    return `<div class="item"><p>${esc(p.name)}<small>${esc(p.pronouns)}</small></p>${use}</div>`
+      + `<details class="persona"><summary>Edit ${esc(p.name)}</summary>${persona_html(p)}</details>`;
+  };
+  const note = `<p class="sub">Each personality has a memory of its own; switching waits for the one in use to finish its work. personalities/ in the server's folder.</p>`;
+  const add  = `<details class="persona"><summary>New personality</summary>${persona_html(null)}</details>`;
+  return section_html("Personalities", note + people.list.map(row).join("") + add + sets);
+}
+
+function persona_html(p: View.Persona | null): string {
+  const id   = p === null ? "" : ` data-id="${esc(p.id)}"`;
+  const name = `<label>Name<input name="name" value="${esc(p?.name ?? "")}" maxlength="40" required autocomplete="off"></label>`;
+  const them = `<label>Pronouns<small>How the memory speaks of it: she/her, he/him, they/them, it/its.</small><input name="pronouns" list="pronoun-sets" value="${esc(p?.pronouns ?? "they/them")}" required autocomplete="off"></label>`;
+  const area = `<textarea name="text" rows="12" spellcheck="false" placeholder="Who this personality is, in your words or theirs. It follows the user prompt in every turn.">${esc(p?.text ?? "")}</textarea>`;
+  return `<form class="prompt person"${id}>${name}${them}${area}<div><p class="why"></p><button class="chip">${p === null ? "Add" : "Save"}</button></div></form>`;
 }
 
 function prompt_html(name: string, text: string, note: string): string {

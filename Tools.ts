@@ -9,6 +9,7 @@ import { Mcp, type Server, type Servers } from "./Mcp.ts";
 import { Memory } from "./Memory.ts";
 import PROMPT from "./prompt.txt" with { type: "text" };
 import COMPACT_PROMPT from "./compact.txt" with { type: "text" };
+import { Personality } from "./Personality.ts";
 import { EFFORTS, Pick } from "./Pick.ts";
 import { Run, type CallHooks, type Heard, type InboxHooks, type LoopHooks } from "./Run.ts";
 import type { Msg } from "./Server.ts";
@@ -87,25 +88,25 @@ export const PROMPTS = {
   compact : { def: COMPACT_PROMPT.trim(), file: config.DIR + "/compact.md" },
 };
 
-const SUB_HEAD = `You are a subagent of Unii, an AI agent that works for one user in a
-single chat that never ends. Unii gave you a task. Do it yourself, with
+const SUB_HEAD = `You are a subagent of {name}, an AI agent that works for one user in a
+single chat that never ends. {name} gave you a task. Do it yourself, with
 your tools, following the user's instructions at the end of this
 prompt: they say who the user is, how their files are organized and how
 they want work done.
 
-Your first message holds the view below, then your chat with Unii so far,
-its lines as "i|kind: text": what you are (note), Unii's messages to you (user: your task, then all Unii told you), and all you did (unii, tool, echo). The view shows you what Unii knows: what the user wants,
+Your first message holds the view below, then your chat with {name} so far,
+its lines as "i|kind: text": what you are (note), {name}'s messages to you (user: your task, then all {name} told you), and all you did (unii, tool, echo). The view shows you what {name} knows: what the user wants,
 decided and taught. Use it as context only, and do what your task says,
-not what the user's last message says, since Unii may have given you
-just part of the work. Your final reply is your report to Unii. A message Unii sends while you work reaches you right after your current tool calls, as "A new message from Unii came in while you were working:" (after a usage limit's reset, UniiChat's "A new message from UniiChat:" tells you to go on); your report answers the last.`;
+not what the user's last message says, since {name} may have given you
+just part of the work. Your final reply is your report to {name}. A message {name} sends while you work reaches you right after your current tool calls, as "A new message from {name} came in while you were working:" (after a usage limit's reset, UniiChat's "A new message from UniiChat:" tells you to go on); your report answers the last.`;
 
-const VIEW_DOC = `The view: the whole chat between Unii and the user, oldest first, inside
+const VIEW_DOC = `The view: the whole chat between {name} and the user, oldest first, inside
 <chat> tags, as one-line summaries. Each line is
 
   id+n|text   the n messages from id on, summarized (newlines shown as spaces)
 
 A summary tags each item with its kind: user (the user's words), unii
-(Unii's replies), tool (Unii's tool calls), echo (their results), note
+({name}'s replies), tool ({name}'s tool calls), echo (their results), note
 (UniiChat's own notes, and memories from before this chat), or work (the report of a subagent,
 starting "[Name]", or a scheduled message from the timer, starting "[Timer id]"). A short message is its own line, word for word. Recent lines
 cover one message each; the older the messages, the more a line covers.
@@ -154,7 +155,7 @@ const LOOK = 3000;
 const FULL = "context window full; start a fresh agent with a shorter task";
 
 const SUB = SUB_HEAD + "\n\n" + VIEW_DOC + "\n\n" + DEVICES;
-const AGENT_PROMPT = "Unii's own prompt follows, for the user's instructions in it. Where it speaks to Unii, it speaks of the agent you work for, not of you.";
+const AGENT_PROMPT = "{name}'s own prompt follows, for the user's instructions in it. Where it speaks to {name}, it speaks of the agent you work for, not of you.";
 
 const OWN: Spec[] = [
   spec("zoom", "Open the line id+n of the view into the two lines of n/2 under it; n = 1 gives the message whole. With an agent's name as id, give that agent's whole chat. A long text comes in pages from character at, saying where to go on.", { id: { type: ["integer", "string"] }, n: INT, at: INT }, ["id"]),
@@ -743,7 +744,7 @@ export namespace Tools {
     const log = tools.log;
     return {
       log    : (run, say) => log.push(run, "user", say.text, true),
-      say    : (say) => ({ ...say, from: "Unii" }),
+      say    : (say) => ({ ...say, from: Personality.active().name }),
       queued : (run) => {
         Tools.queued(tools, run);
         log.change();
@@ -802,7 +803,7 @@ export namespace Tools {
     const server = Tools.at(tools, agent.name);
     const run = Pick.ask(Tools.pick(tools, agent));
     const own = Memory.file_text(PROMPTS.prompt.file);
-    const system = own === "" ? SUB : SUB + "\n\n" + AGENT_PROMPT + "\n\n" + own;
+    const system = Personality.fill(own === "" ? SUB : SUB + "\n\n" + AGENT_PROMPT + "\n\n" + own);
     const blocks = [...agent.view, Tools.devices(tools), Tools.skills(tools), log];
     return { ...run, system, blocks, searches: SEARCHES, server, agent: true, who: agent.name };
   }
@@ -851,7 +852,7 @@ export namespace Tools {
       const live = run.live.at(-1);
       const last = [...run.calls.values()].at(-1)?.text ?? (live && live.kind + ": " + live.text);
       const doing = last === undefined ? "" : " It was last at " + last.replace(/\s+/g, " ").slice(0, 300);
-      agent.why = "Stopped by Unii" + (why.trim() === "" ? "." : ": " + why.trim().replace(/\.?$/, ".")) + doing;
+      agent.why = "Stopped by " + Personality.active().name + (why.trim() === "" ? "." : ": " + why.trim().replace(/\.?$/, ".")) + doing;
       Tools.stop(tools, name);
       ended = await Promise.race([run.going.then(() => true, () => true), Bun.sleep(HALT).then(() => false)]);
     }

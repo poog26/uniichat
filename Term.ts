@@ -9,6 +9,7 @@ import { type Move, Pick } from "./Pick.ts";
 import * as Screen from "./Screen.ts";
 import * as View from "./View.ts";
 import { err_why } from "./Err.ts";
+import { text_of } from "./Json.ts";
 
 type Term = {
   v       : View.View;
@@ -67,6 +68,7 @@ function term_groups(): [group: string, cmds: Cmd[]][] {
       ["/open #id",         "",                        "open block #id, as it shows, and keep it open",  (t, a) => term_block(t, a, true)],
       ["/close #id",        "",                        "close block #id and keep it closed",             (t, a) => term_block(t, a, false)],
       ["/fold",             "Ctrl+F",                  "the chat in the fewest blocks; again: unfold (Ctrl+F eaten? type /fold)", term_fold],
+      ["/personality [name]", "",                      "the personalities; with a name, switch to that one (edit them in the browser's Settings)", term_personality],
       ["/mode [mode]",      "",                        "the memory mode, standard or conversation (messages stay word for word in Unii's view); with one, that one", term_mode],
       ["/import [...]",     "",                        "import your Claude and ChatGPT chats (alone: options)", term_import],
       ["/export",           "",                        "save the memory as ./unii-memory.json",          term_export],
@@ -168,8 +170,14 @@ function term_send(t: Term, msg: View.Client, sent?: View.Sent): void {
 function term_hear(t: Term, msg: View.Server): void {
   const first = msg.$ === "view" && t.v.parts.length === 0;
   const was   = t.v.page;
+  const who   = t.v.personality?.id;
   for (const out of View.view_hear(t.v, msg)) {
     term_send(t, out);
+  }
+  if (who !== undefined && who !== t.v.personality?.id) {
+    [t.last, t.wait] = [-1, []];
+    t.logs.clear();
+    term_rows(t, [View.Cap(View.main_name(t.v))], false);
   }
   if (msg.$ === "state" && msg.site) {
     Paint.paint_site(msg.site);
@@ -209,7 +217,7 @@ function term_back(t: Term, sent: View.Sent): void {
 function term_went(t: Term, was: View.Page | null): void {
   t.scr.off = t.scr.tty && !View.view_typing(t.v);
   if (t.v.page !== was) {
-    term_rows(t, t.v.page === null ? [View.Cap(View.MAIN)] : [], false);
+    term_rows(t, t.v.page === null ? [View.Cap(View.main_name(t.v))] : [], false);
     term_show(t);
   }
 }
@@ -366,7 +374,7 @@ function term_fold(t: Term): void {
 }
 
 function term_tab(t: Term, arg: string): void {
-  const main = arg.toLowerCase() === View.MAIN.toLowerCase();
+  const main = [View.MAIN, View.main_name(t.v)].some((name) => arg.toLowerCase() === name.toLowerCase());
   if (arg === "") {
     return term_note(t, "Tabs: " + View.view_tabs(t.v).map((tab) => tab.text).join("  "));
   }
@@ -412,6 +420,24 @@ function term_mode(t: Term, arg: string): void {
   const talk = t.v.talk;
   const now = talk === null ? "standard" : "conversation, from message " + talk.from + ", " + View.talk_percent(talk) + "% of the context used (" + View.talk_tokens(talk) + ")";
   term_note(t, (arg === "" ? "" : "No mode " + arg + ". ") + "The memory mode is " + now + ". /mode standard or /mode conversation switches it.");
+}
+
+async function term_personality(t: Term, arg: string): Promise<void> {
+  const res = await term_get(t, "/api/personalities", "read the personalities");
+  const people = (await res?.json().catch(() => null)) as View.Personalities | null;
+  if (people === null) {
+    return;
+  }
+  const names = people.list.map((p) => p.name + (p.id === people.active ? " (in use)" : "")).join(", ");
+  const named = people.list.find((p) => [p.id, p.name.toLowerCase()].includes(arg.toLowerCase()));
+  if (arg === "" || named === undefined) {
+    return term_note(t, (arg === "" ? "" : "No personality " + arg + ". ") + "Personalities: " + names + ". /personality <name> switches to one.");
+  }
+  if (named.id === people.active) {
+    return term_note(t, named.name + " is in use already.");
+  }
+  const out = await View.post(t.url + "/api/personalities", { use: named.id }, Client.auth(t.token));
+  term_note(t, out.error === undefined ? "Switched to " + named.name + "." : text_of(out.error));
 }
 
 async function term_export(t: Term): Promise<void> {
@@ -714,7 +740,7 @@ function term_paint(t: Term): void {
   const iw    = term_inner();
   const room  = (process.stdout.rows || 24) - TOP_ROW_KEPT_FREE;
   const off   = t.scr.off;
-  const input = off ? null : Screen.screen_input(t.scr, iw, room - 3, View.HINT + " · /help");
+  const input = off ? null : Screen.screen_input(t.scr, iw, room - 3, View.hint(t.v) + " · /help");
   const under = off && t.v.up ? [] : [Paint.rule_text(t.v.up ? "" : "offline", iw)];
   const own   = term_inset([Paint.rule_line(t.v, iw), ...(input?.lines ?? []), ...under, Paint.tabs_line(t.v, iw)]);
   const rest  = View.view_stream(t.v).map((l) => ({ kind: l.kind, text: l.text.slice(t.flow.get(l) ?? 0) }));

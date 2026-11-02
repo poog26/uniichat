@@ -238,7 +238,7 @@ function chat(): void {
 
 function signed(): void {
   document.body.className = "";
-  BOX.dataset.placeholder = View.HINT;
+  BOX.dataset.placeholder = View.hint(v);
   Box.box_set(sessionStorage.getItem(kept("draft")) ?? "");
   renewed();
 }
@@ -626,6 +626,7 @@ function hear(msg: View.Server): void {
   P.rows ||= msg.$ === "state" ? v.agents.join() !== agents || JSON.stringify(v.sent) !== sent : msg.$ !== "delta" && msg.$ !== "live";
   if (msg.$ === "state") {
     renew_due(msg.build);
+    BOX.dataset.placeholder = View.hint(v);
   }
   void import_welcome();
   draw(true);
@@ -1052,10 +1053,11 @@ function popped(): void {
 
 async function account(): Promise<void> {
   const el = $("#account");
-  const [got, set] = await Promise.all([fetch("/api/prompts").catch(() => null), fetch("/api/settings").catch(() => null)]);
+  const [got, set, ps] = await Promise.all(["/api/prompts", "/api/settings", "/api/personalities"].map((path) => fetch(path).catch(() => null)));
   const prompts = got !== null && got.ok ? ((await got.json().catch(() => null)) as View.Prompts | null) : null;
+  const people = ps !== null && ps.ok ? ((await ps.json().catch(() => null)) as View.Personalities | null) : null;
   const push = await notify_state().catch(() => null);
-  el.innerHTML = Html.account_html(prompts, push);
+  el.innerHTML = Html.account_html(prompts, people, push);
   RENEW.dirty.clear();
   el.oninput = (ev) => {
     const form = (ev.target as Element).closest("form");
@@ -1065,8 +1067,9 @@ async function account(): Promise<void> {
   };
   el.querySelectorAll<HTMLFormElement>("form.prompt").forEach((form) => (form.onsubmit = (ev) => {
     ev.preventDefault();
-    void account_prompt(form);
+    void (form.classList.contains("person") ? persona_save(form) : account_prompt(form));
   }));
+  el.querySelectorAll<HTMLButtonElement>(".use").forEach((use) => (use.onclick = () => void persona_use(use)));
   mcp_draw();
   el.querySelectorAll<HTMLButtonElement>(".retry").forEach((retry) => (retry.onclick = () => void account()));
   $("#account .out").onclick = () => void signout();
@@ -1121,6 +1124,40 @@ async function account_prompt(form: HTMLFormElement): Promise<void> {
     RENEW.since = true;
   }
   draw(false);
+}
+
+async function persona_save(form: HTMLFormElement): Promise<void> {
+  const why  = must(form.querySelector(".why"), "the personality's why");
+  const save = find(form, "button", HTMLButtonElement);
+  const data = new FormData(form);
+  const field = (key: string) => {
+    const x = data.get(key);
+    return typeof x === "string" ? x : "";
+  };
+  const sent = { ...(form.dataset.id === undefined ? {} : { id: form.dataset.id }), name: field("name"), pronouns: field("pronouns"), text: field("text") };
+  save.disabled = true;
+  RENEW.saving++;
+  const out = await View.post("/api/personalities", sent);
+  RENEW.saving--;
+  save.disabled = false;
+  form.classList.toggle("bad", out.error !== undefined);
+  if (out.error !== undefined) {
+    why.textContent = text_of(out.error);
+    return;
+  }
+  RENEW.dirty.delete(form);
+  await account();
+}
+
+async function persona_use(use: HTMLButtonElement): Promise<void> {
+  use.disabled = true;
+  const out = await View.post("/api/personalities", { use: use.dataset.id });
+  if (out.error !== undefined) {
+    use.disabled = false;
+    toast(text_of(out.error));
+    return;
+  }
+  await account();
 }
 
 async function notify_state(): Promise<Html.Notify | null> {
