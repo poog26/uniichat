@@ -1071,6 +1071,7 @@ async function account(): Promise<void> {
   }));
   el.querySelectorAll<HTMLButtonElement>(".use").forEach((use) => (use.onclick = () => void persona_use(use)));
   el.querySelectorAll<HTMLButtonElement>(".unlink").forEach((stop) => (stop.onclick = () => void persona_unlink(stop)));
+  el.querySelectorAll<HTMLButtonElement>(".pact").forEach((act) => (act.onclick = () => void persona_act(act)));
   mcp_draw();
   el.querySelectorAll<HTMLButtonElement>(".retry").forEach((retry) => (retry.onclick = () => void account()));
   $("#account .out").onclick = () => void signout();
@@ -1163,6 +1164,20 @@ async function persona_link(form: HTMLFormElement): Promise<void> {
   form.classList.toggle("bad", out.error !== undefined);
   if (out.error !== undefined) {
     why.textContent = text_of(out.error);
+    return;
+  }
+  await account();
+}
+
+async function persona_act(act: HTMLButtonElement): Promise<void> {
+  if (act.dataset.ask !== undefined && !confirm(act.dataset.ask)) {
+    return;
+  }
+  act.disabled = true;
+  const out = await View.post("/api/personalities", JSON.parse(act.dataset.body ?? "{}") as object);
+  if (out.error !== undefined) {
+    act.disabled = false;
+    toast(text_of(out.error));
     return;
   }
   await account();

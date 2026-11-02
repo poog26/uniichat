@@ -258,7 +258,7 @@ export namespace Chat {
   }
 
   export function links(chat: Chat): void {
-    Personality.unseen(Personality.active().id).forEach((e) => Chat.note(chat, Personality.told(e)));
+    Personality.news(Personality.active().id).forEach((text) => Chat.note(chat, text));
   }
 
   export function pick_name(pick: Pick): string {
@@ -832,6 +832,7 @@ export namespace Chat {
     if (chat.main.busy || chat.batch !== null) {
       return { error: (chat.main.busy ? Personality.active().name + " is answering" : "An import is under way") + ": import again once it ends." };
     }
+    Personality.checkpoint(Personality.active().id, "before an import");
     const done = Chat.done(chat);
     let said = 0;
     let found = 0;
@@ -1718,23 +1719,39 @@ export namespace Main {
   }
 
   export async function personalities(req: Request): Promise<Response> {
-    const read = () => ({ active: Personality.active().id, list: Personality.list(), links: Personality.links(), pronouns: PRONOUN_SETS });
+    const kept = (p: Personality) => ({ ...p, versions: Personality.versions(p.id), checkpoints: Personality.checkpoints(p.id) });
+    const read = () => ({ active: Personality.active().id, list: Personality.list().map(kept), links: Personality.links(), journal: Personality.journal().reverse(), archived: Personality.archived(), pronouns: PRONOUN_SETS });
     if (req.method !== "POST") {
       return Response.json(read());
     }
     const msg: unknown = await req.json().catch(() => null);
     const [use, id, link, unlink] = [str(get(msg, "use")), str(get(msg, "id")), get(msg, "link"), get(msg, "unlink")];
+    const [revert, rewind, keep, shelve, unshelve] = ["revert", "rewind", "checkpoint", "archive", "unarchive"].map((k) => get(msg, k));
+    const arg = (x: unknown, k: string) => text_of(get(x, k));
     try {
       if (use !== undefined) {
         await Main.become(use);
       } else if (link !== undefined || unlink !== undefined) {
-        const [from, to] = [text_of(get(link ?? unlink, "from")), text_of(get(link ?? unlink, "to"))];
+        const [from, to] = [arg(link ?? unlink, "from"), arg(link ?? unlink, "to")];
+        const what = link !== undefined ? "linking " + from + " to " + to : "unlinking " + from + " from " + to;
+        [from, to].filter((p) => Personality.read(p) !== null).forEach((p) => Personality.checkpoint(p, "before " + what));
         if (link !== undefined) {
           Personality.link(from, to, str(get(link, "since")) || null);
         } else {
           Personality.unlink(from, to);
         }
         Chat.links(Main.chat);
+      } else if (revert !== undefined) {
+        Personality.revert(arg(revert, "id"), arg(revert, "at"));
+      } else if (rewind !== undefined) {
+        Personality.rewind(arg(rewind, "id"), arg(rewind, "at"));
+      } else if (keep !== undefined) {
+        Personality.checkpoint(arg(keep, "id"), "kept by the user");
+      } else if (shelve !== undefined) {
+        Personality.archive(arg(shelve, "id"));
+        Chat.links(Main.chat);
+      } else if (unshelve !== undefined) {
+        Personality.unarchive(arg(unshelve, "dir"));
       } else {
         const p = { name: text_of(get(msg, "name")), pronouns: text_of(get(msg, "pronouns")), text: text_of(get(msg, "text")) };
         Personality.save(id === undefined ? p : { ...p, id });

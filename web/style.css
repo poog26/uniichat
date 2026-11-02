@@ -405,6 +405,8 @@ header > .imping { display: flex; flex-direction: column; justify-content: cente
 .person input { display: block; box-sizing: border-box; width: 100%; height: 40px; margin-top: 6px; padding: 0 10px; border: 1px solid var(--frame); border-radius: 9px; background: var(--paper); color: var(--ink); font: 16px var(--sans); }
 #account .chip.on { color: var(--mid); background: none; }
 .item.reads { padding-top: 0; border-top: 0; }
+.persona .sub { margin: 12px 0 6px; }
+.past { margin: 0; padding-left: 18px; font-size: 13.5px; color: var(--mid); }
 .person select { display: block; box-sizing: border-box; width: 100%; height: 40px; margin-top: 6px; padding: 0 10px; border: 1px solid var(--frame); border-radius: 9px; background: var(--paper); color: var(--ink); font: 16px var(--sans); }
 #account .foot { margin: 24px 0 0; font-size: 13px; color: var(--mid); }
 #account .foot a { text-decoration: none; }

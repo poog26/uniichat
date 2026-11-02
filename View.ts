@@ -173,11 +173,11 @@ export type Choice = { text: string; to: string; move: Move; here: boolean; vend
 
 export type Prompts = Record<"prompt" | "compact", { text: string; def: string }>;
 
-export type Persona = { id: string; name: string; pronouns: string; text: string };
+export type Persona = { id: string; name: string; pronouns: string; text: string; versions?: Persona[]; checkpoints?: Array<{ at: string; why: string }> };
 
 type Linked = { from: string; to: string; since: string | null };
 
-export type Personalities = { active: string; list: Persona[]; links: Linked[]; pronouns: string[]; error?: string };
+export type Personalities = { active: string; list: Persona[]; links: Linked[]; journal: Array<Linked & { op: string; at: string }>; archived: Array<{ dir: string; name: string; at: string }>; pronouns: string[]; error?: string };
 
 export const MAIN = "UniiChat";
 

@@ -175,12 +175,37 @@ function personalities_html(people: View.Personalities | null): string {
       return `<div class="item reads"><p><small>Reads ${esc(from)}'s memory, read-only${l.since === null ? "" : ", from " + esc(l.since) + " on"}</small></p>${stop}</div>`;
     });
     return `<div class="item"><p>${esc(p.name)}<small>${esc(p.pronouns)}</small></p>${use}</div>` + reads.join("")
-      + `<details class="persona"><summary>Edit ${esc(p.name)}</summary>${persona_html(p)}</details>`;
+      + `<details class="persona"><summary>Edit ${esc(p.name)}</summary>${persona_html(p)}</details>`
+      + `<details class="persona"><summary>History of ${esc(p.name)}</summary>${history_html(p, here)}</details>`;
   };
   const name = (id: string) => people.list.find((p) => p.id === id)?.name ?? id;
   const note = `<p class="sub">Each personality has a memory of its own; switching waits for the one in use to finish its work. personalities/ in the server's folder.</p>`;
   const add  = `<details class="persona"><summary>New personality</summary>${persona_html(null)}</details>`;
-  return section_html("Personalities", note + people.list.map(row).join("") + add + (people.list.length < 2 ? "" : link_html(people.list)) + sets);
+  const shelf = people.archived.map((a) => `<div class="item"><p>${esc(a.name)}<small>Archived ${esc(when(a.at))}</small></p>${pact_html("Bring back", { unarchive: { dir: a.dir } })}</div>`);
+  const kept  = shelf.length === 0 ? "" : `<details class="persona"><summary>Archived</summary>${shelf.join("")}</details>`;
+  const done  = people.journal.map((e) => `<li>${esc(when(e.at.replace(/[:.]/g, "-")))}: ${esc(name(e.to))} ${e.op === "link" ? "reads" : "stopped reading"} ${esc(name(e.from))}'s memory${e.since === null ? "" : ", from " + esc(e.since) + " on"}</li>`);
+  const past  = done.length === 0 ? "" : `<details class="persona"><summary>Link history</summary><ul class="past">${done.join("")}</ul></details>`;
+  return section_html("Personalities", note + people.list.map(row).join("") + add + (people.list.length < 2 ? "" : link_html(people.list)) + past + kept + sets);
+}
+
+function history_html(p: View.Persona, here: boolean): string {
+  const versions = (p.versions ?? []).map((v) => `<div class="item reads"><p><small>${esc(when(v.id))}: ${esc(v.name)}, ${esc(v.pronouns)}</small></p>${pact_html("Restore", { revert: { id: p.id, at: v.id } }, "Bring back this version of " + p.name + "'s personality? The one now is kept as a version too.")}</div>`);
+  const checks = (p.checkpoints ?? []).map((c) => {
+    const back = here ? `<span class="chip on">In use</span>` : pact_html("Restore", { rewind: { id: p.id, at: c.at } }, "Bring " + p.name + "'s memory back to " + when(c.at) + "? The memory as it is now is kept as a checkpoint, so nothing is lost.");
+    return `<div class="item reads"><p><small>${esc(when(c.at))}${c.why === "" ? "" : ": " + esc(c.why)}</small></p>${back}</div>`;
+  });
+  const note = `<p class="note">Every saved change keeps the version before it. A checkpoint is a copy of the memory, taken before each link, unlink and import, or when you ask; restoring one needs another personality in use.</p>`;
+  const shelve = p.id === View.UNII.id || here ? "" : `<div class="item"><p><small>Archive: out of the list, links stopped, nothing deleted</small></p>${pact_html("Archive", { archive: { id: p.id } }, "Archive " + p.name + "? Its links stop, and it can be brought back from Archived.")}</div>`;
+  const list = (title: string, rows: string[]) => `<p class="sub">${title}</p>` + (rows.length === 0 ? `<p class="note">None yet.</p>` : rows.join(""));
+  return note + list("Personality versions", versions) + list("Memory checkpoints", checks) + `<div class="item">${pact_html("Keep a checkpoint now", { checkpoint: { id: p.id } })}</div>` + shelve;
+}
+
+function pact_html(text: string, body: object, ask = ""): string {
+  return `<button class="chip pact" data-body="${esc(JSON.stringify(body))}"${ask === "" ? "" : ` data-ask="${esc(ask)}"`}>${esc(text)}</button>`;
+}
+
+function when(at: string): string {
+  return at.slice(0, 10) + " " + at.slice(11, 16).replace("-", ":") + " UTC";
 }
 
 function link_html(list: View.Persona[]): string {
