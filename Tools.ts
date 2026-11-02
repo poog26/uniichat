@@ -6,10 +6,10 @@ import * as config from "./Config.ts";
 import { Limit } from "./Limit.ts";
 import { INT, STR, TOOLS, spec, type Job, type Skill, type Spec } from "./Machine.ts";
 import { Mcp, type Server, type Servers } from "./Mcp.ts";
-import { Memory } from "./Memory.ts";
+import { Memory, type Reader } from "./Memory.ts";
 import PROMPT from "./prompt.txt" with { type: "text" };
 import COMPACT_PROMPT from "./compact.txt" with { type: "text" };
-import { Personality } from "./Personality.ts";
+import { Personality, type Link as Shared } from "./Personality.ts";
 import { EFFORTS, Pick } from "./Pick.ts";
 import { Run, type CallHooks, type Heard, type InboxHooks, type LoopHooks } from "./Run.ts";
 import type { Msg } from "./Server.ts";
@@ -150,6 +150,9 @@ const MEDIA_AT = "Media and files in the chat, /media/<name>, are the files {dir
 
 const SKILLS = "Skills on the devices open now, by device: when a task matches one's description, load it with the skill tool first, then follow it.";
 
+const LINKED  = `Linked memories: the user let you read these other personalities' memories. They are theirs, not yours: what they hold happened to them, not to you (in them, unii: is that personality's own replies), and you can't change them. Their lines read as your view's, with the personality's id before each, as id:n+k|text, oldest first; zoom("id:n", k) opens one as zoom does yours, and date("id:n") gives a message's date.`;
+const LINK_ID = /^([a-z0-9-]+):(\d+)$/;
+
 const LOOK = 3000;
 
 const FULL = "context window full; start a fresh agent with a shorter task";
@@ -158,8 +161,8 @@ const SUB = SUB_HEAD + "\n\n" + VIEW_DOC + "\n\n" + DEVICES;
 const AGENT_PROMPT = "{name}'s own prompt follows, for the user's instructions in it. Where it speaks to {name}, it speaks of the agent you work for, not of you.";
 
 const OWN: Spec[] = [
-  spec("zoom", "Open the line id+n of the view into the two lines of n/2 under it; n = 1 gives the message whole. With an agent's name as id, give that agent's whole chat. A long text comes in pages from character at, saying where to go on.", { id: { type: ["integer", "string"] }, n: INT, at: INT }, ["id"]),
-  spec("date", "The date and time of message id.", { id: INT }, ["id"]),
+  spec("zoom", "Open the line id+n of the view into the two lines of n/2 under it; n = 1 gives the message whole. With an agent's name as id, give that agent's whole chat; with \"name:id\", open a line of a linked memory. A long text comes in pages from character at, saying where to go on.", { id: { type: ["integer", "string"] }, n: INT, at: INT }, ["id"]),
+  spec("date", "The date and time of message id, or of \"name:id\" in a linked memory.", { id: { type: ["integer", "string"] } }, ["id"]),
 ];
 const BOSS: Spec[] = [
   spec("spawn", "Start one subagent per task, in parallel, and return their names at once. Each one's report reaches you when it finishes, as a new message from a subagent, starting \"[Name]\". One that hits an AI service's usage limit waits for the reset and goes on by itself, as you do (Agents at work shows it waiting); stop ends it. A subagent sees the view and the user's instructions, but knows what you want only from its task. Each task names its own model and effort, if any.", { tasks: { type: "array", items: TASK } }, ["tasks"]),
@@ -217,6 +220,48 @@ export namespace Tools {
     const line  = ([name, d]: [string, Device]) => "- " + name + ", work dir " + work(d) + " (the user's projects), scratch dir " + temp(d) + (shell(d) ? ", shell " + shell(d) + " (stopping the device does not kill a process a call left running after its shell ended)" : "");
     const lines = Tools.opened(tools).map(line);
     return { text: "Devices open now:\n" + (lines.length === 0 ? DEVICES_NONE : lines.join("\n")) + "\n" + MEDIA_AT.replace("{dir}", tools.mem.dir + "/docs/media/") + "\n\n", mark: false };
+  }
+
+  export function linked(): Block {
+    const me = Personality.active().id;
+    const shown = Personality.links().filter((link) => link.to === me).flatMap((link) => {
+      const [from, mem] = [Personality.read(link.from), Memory.reader(Personality.chat(link.from))];
+      if (from === null || mem === null) {
+        return [];
+      }
+      try {
+        const lines = Memory.outline(mem, Tools.shared(mem, link)).map((part) => link.from + ":" + Memory.outline_line(mem, part));
+        return ["- " + link.from + ": " + from.name + " (" + from.pronouns + ")" + (link.since === null ? "" : ", from " + link.since + " on") + "\n" + (lines.length === 0 ? "(nothing yet)" : lines.join("\n"))];
+      } finally {
+        Memory.close(mem);
+      }
+    });
+    return { text: shown.length === 0 ? "" : LINKED + "\n" + shown.join("\n") + "\n\n", mark: false };
+  }
+
+  export function shared(mem: Reader, link: Shared): number {
+    return link.since === null ? 0 : Memory.since(mem, link.since);
+  }
+
+  // a linked memory, read only, and only from where its link starts
+  export function far(from: string, id: number, n: number, at: number, zoom: boolean): Out {
+    const link = Personality.links().find((l) => l.from === from && l.to === Personality.active().id);
+    const mem = link === undefined ? null : Memory.reader(Personality.chat(from));
+    if (link === undefined || mem === null) {
+      return { text: "No linked memory " + from + ".", fail: true };
+    }
+    try {
+      if (id < Tools.shared(mem, link)) {
+        return { text: from + ":" + id + " is from before " + link.since + ", where the link starts: not shared with you.", fail: true };
+      }
+      if (!zoom) {
+        return { text: Memory.date(mem, id), fail: false };
+      }
+      const text = Memory.zoom(mem, id, n, at).replace(/^(?=\d+\+\d+\|)/gm, from + ":");
+      return { text, fail: false, imgs: n === 1 && at === 0 ? Memory.images(mem, id) : [] };
+    } finally {
+      Memory.close(mem);
+    }
   }
 
   export function skills(tools: Tools): Block {
@@ -359,6 +404,10 @@ export namespace Tools {
         const id = String(args.id);
         const n = Number(args.n ?? 1);
         const at = Number(args.at ?? 0);
+        const far = LINK_ID.exec(id);
+        if (far !== null) {
+          return Tools.far(far[1], Number(far[2]), n, at, true);
+        }
         if (/^[A-Za-z]/.test(id)) {
           return { text: clip_page(Memory.agent_show(mem, id), at), fail: false };
         }
@@ -366,7 +415,8 @@ export namespace Tools {
         return { text: Memory.zoom(mem, Number(id), n, at), fail: false, imgs };
       }
       case "date": {
-        return { text: Memory.date(mem, Number(args.id)), fail: false };
+        const far = LINK_ID.exec(String(args.id));
+        return far === null ? { text: Memory.date(mem, Number(args.id)), fail: false } : Tools.far(far[1], Number(far[2]), 1, 0, false);
       }
       case "spawn": {
         const tasks = Tools.spawns(args);

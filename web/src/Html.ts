@@ -169,12 +169,25 @@ function personalities_html(people: View.Personalities | null): string {
   const row  = (p: View.Persona) => {
     const here = p.id === people.active;
     const use  = here ? `<span class="chip on">In use</span>` : `<button class="chip use" data-id="${esc(p.id)}">Switch</button>`;
-    return `<div class="item"><p>${esc(p.name)}<small>${esc(p.pronouns)}</small></p>${use}</div>`
+    const reads = people.links.filter((l) => l.to === p.id).map((l) => {
+      const from = name(l.from);
+      const stop = `<button class="chip unlink" data-from="${esc(l.from)}" data-to="${esc(l.to)}" data-text="${esc(p.name + " stops reading " + from + "'s memory. What " + p.name + " already took from it stays in " + p.name + "'s own.")}">Stop</button>`;
+      return `<div class="item reads"><p><small>Reads ${esc(from)}'s memory, read-only${l.since === null ? "" : ", from " + esc(l.since) + " on"}</small></p>${stop}</div>`;
+    });
+    return `<div class="item"><p>${esc(p.name)}<small>${esc(p.pronouns)}</small></p>${use}</div>` + reads.join("")
       + `<details class="persona"><summary>Edit ${esc(p.name)}</summary>${persona_html(p)}</details>`;
   };
+  const name = (id: string) => people.list.find((p) => p.id === id)?.name ?? id;
   const note = `<p class="sub">Each personality has a memory of its own; switching waits for the one in use to finish its work. personalities/ in the server's folder.</p>`;
   const add  = `<details class="persona"><summary>New personality</summary>${persona_html(null)}</details>`;
-  return section_html("Personalities", note + people.list.map(row).join("") + add + sets);
+  return section_html("Personalities", note + people.list.map(row).join("") + add + (people.list.length < 2 ? "" : link_html(people.list)) + sets);
+}
+
+function link_html(list: View.Persona[]): string {
+  const pick = (field: string, at: number) => `<select name="${field}">${list.map((p, k) => `<option value="${esc(p.id)}"${k === at ? " selected" : ""}>${esc(p.name)}</option>`).join("")}</select>`;
+  const note = `<p class="note">One way, read only: the reader sees the other's memory and zooms into it, and never changes it. The other doesn't see the reader's. For both ways, link twice.</p>`;
+  const form = `<form class="prompt person link">${note}<label>Let${pick("to", 1)}</label><label>read the memory of${pick("from", 0)}</label><label>From<small>Empty: all of it. A date: only from that day on.</small><input name="since" type="date"></label><div><p class="why"></p><button class="chip">Link</button></div></form>`;
+  return `<details class="persona"><summary>Link memories</summary>${form}</details>`;
 }
 
 function persona_html(p: View.Persona | null): string {

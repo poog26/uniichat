@@ -1067,9 +1067,10 @@ async function account(): Promise<void> {
   };
   el.querySelectorAll<HTMLFormElement>("form.prompt").forEach((form) => (form.onsubmit = (ev) => {
     ev.preventDefault();
-    void (form.classList.contains("person") ? persona_save(form) : account_prompt(form));
+    void (form.classList.contains("link") ? persona_link(form) : form.classList.contains("person") ? persona_save(form) : account_prompt(form));
   }));
   el.querySelectorAll<HTMLButtonElement>(".use").forEach((use) => (use.onclick = () => void persona_use(use)));
+  el.querySelectorAll<HTMLButtonElement>(".unlink").forEach((stop) => (stop.onclick = () => void persona_unlink(stop)));
   mcp_draw();
   el.querySelectorAll<HTMLButtonElement>(".retry").forEach((retry) => (retry.onclick = () => void account()));
   $("#account .out").onclick = () => void signout();
@@ -1146,6 +1147,38 @@ async function persona_save(form: HTMLFormElement): Promise<void> {
     return;
   }
   RENEW.dirty.delete(form);
+  await account();
+}
+
+async function persona_link(form: HTMLFormElement): Promise<void> {
+  const why   = must(form.querySelector(".why"), "the link's why");
+  const [to, from] = ["to", "from"].map((name) => find(form, `[name=${name}]`, HTMLSelectElement));
+  const since = find(form, "[name=since]", HTMLInputElement).value;
+  const [reader, source] = [to, from].map((pick) => pick.selectedOptions[0]?.textContent ?? pick.value);
+  const asked = reader + " will read " + source + "'s memory" + (since === "" ? "" : " from " + since + " on") + ", read-only. " + source + " won't read " + reader + "'s. Link them?";
+  if (!confirm(asked)) {
+    return;
+  }
+  const out = await View.post("/api/personalities", { link: { from: from.value, to: to.value, since: since === "" ? null : since } });
+  form.classList.toggle("bad", out.error !== undefined);
+  if (out.error !== undefined) {
+    why.textContent = text_of(out.error);
+    return;
+  }
+  await account();
+}
+
+async function persona_unlink(stop: HTMLButtonElement): Promise<void> {
+  if (!confirm(stop.dataset.text ?? "Stop this link?")) {
+    return;
+  }
+  stop.disabled = true;
+  const out = await View.post("/api/personalities", { unlink: { from: stop.dataset.from, to: stop.dataset.to } });
+  if (out.error !== undefined) {
+    stop.disabled = false;
+    toast(text_of(out.error));
+    return;
+  }
   await account();
 }
 

@@ -5,6 +5,10 @@ import { write_whole } from "./Write.ts";
 
 export type Personality = { id: string; name: string; pronouns: string; text: string };
 
+export type Link = { from: string; to: string; since: string | null };
+
+type Entry = Link & { op: "link" | "unlink"; at: string };
+
 const DIR      = config.DIR + "/personalities";
 const ACTIVE   = DIR + "/active";
 const FILE     = "/personality.md";
@@ -12,6 +16,8 @@ const NAME_MAX = 40;
 const TEXT_MAX = 64 * 1024;
 const PRONOUNS = /^\p{L}+\/\p{L}+$/u;
 const HEAD     = "# Who you are\n\n";
+const JOURNAL  = DIR + "/links.jsonl";
+const SEEN     = "/links.seen";
 
 export const PRONOUN_SETS = ["she/her", "he/him", "they/them", "it/its"];
 
@@ -91,6 +97,75 @@ export namespace Personality {
       id = base + "-" + k;
     }
     return id;
+  }
+
+  export function journal(): Entry[] {
+    const lines = fs.existsSync(JOURNAL) ? fs.readFileSync(JOURNAL, "utf8").split("\n") : [];
+    return lines.flatMap((line) => {
+      try {
+        return line === "" ? [] : [JSON.parse(line) as Entry];
+      } catch {
+        return [];
+      }
+    });
+  }
+
+  export function links(): Link[] {
+    const now = new Map<string, Link>();
+    for (const { op, from, to, since } of Personality.journal()) {
+      if (op === "link") {
+        now.set(from + " " + to, { from, to, since });
+      } else {
+        now.delete(from + " " + to);
+      }
+    }
+    return [...now.values()].filter((l) => Personality.read(l.from) !== null && Personality.read(l.to) !== null);
+  }
+
+  export function link(from: string, to: string, since: string | null): void {
+    if (from === to) {
+      throw new Error("A personality reads its own memory already.");
+    }
+    for (const id of [from, to]) {
+      if (Personality.read(id) === null) {
+        throw new Error("No personality " + id + ".");
+      }
+    }
+    if (since !== null && (!/^\d{4}-\d{2}-\d{2}$/.test(since) || isNaN(Date.parse(since)))) {
+      throw new Error("A link's start is a date, like 2026-11-02.");
+    }
+    Personality.write({ op: "link", from, to, since, at: new Date().toISOString() });
+  }
+
+  export function unlink(from: string, to: string): void {
+    if (!Personality.links().some((l) => l.from === from && l.to === to)) {
+      throw new Error("No link from " + from + " to " + to + ".");
+    }
+    Personality.write({ op: "unlink", from, to, since: null, at: new Date().toISOString() });
+  }
+
+  export function write(entry: Entry): void {
+    fs.mkdirSync(DIR, { recursive: true });
+    fs.appendFileSync(JOURNAL, JSON.stringify(entry) + "\n");
+  }
+
+  // the journal's entries about id it hasn't been told of yet
+  export function unseen(id: string): Entry[] {
+    const file = DIR + "/" + id + SEEN;
+    const all  = Personality.journal();
+    const seen = fs.existsSync(file) ? Number(fs.readFileSync(file, "utf8")) || 0 : 0;
+    if (seen !== all.length) {
+      fs.mkdirSync(DIR + "/" + id, { recursive: true });
+      write_whole(file, all.length + "\n");
+    }
+    return all.slice(seen).filter((e) => e.from === id || e.to === id);
+  }
+
+  export function told(e: Entry): string {
+    const [from, to] = [e.from, e.to].map((id) => Personality.read(id)?.name ?? id);
+    return e.op === "link"
+      ? "The user let " + to + " read " + from + "'s memory, read-only" + (e.since === null ? "" : ", from " + e.since + " on") + "."
+      : "The user stopped " + to + " reading " + from + "'s memory.";
   }
 
   export function fill(text: string): string {

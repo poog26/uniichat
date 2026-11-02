@@ -245,6 +245,7 @@ export namespace Chat {
       const first: Log = Personality.active().id === BUILT_IN.id ? { kind: "unii", text: HELLO, line: HELLO_LINE } : { kind: "note", text: Personality.fill(BEGUN) };
       Memory.push(mem, [first]);
     }
+    Chat.links(chat);
     chat.eye = Chat.eye(mem, Memory.turn(mem));
     mem.made = (l, i) => Chat.made(chat, l, i);
     mem.wait.add(() => Chat.progress(chat));
@@ -254,6 +255,10 @@ export namespace Chat {
     Chat.progress(chat);
     Chat.resume(chat, cut).finally(() => Chat.change(chat)).catch((err: unknown) => console.error("unii: resuming the chat: " + err_why(err)));
     return chat;
+  }
+
+  export function links(chat: Chat): void {
+    Personality.unseen(Personality.active().id).forEach((e) => Chat.note(chat, Personality.told(e)));
   }
 
   export function pick_name(pick: Pick): string {
@@ -446,7 +451,7 @@ export namespace Chat {
     const server = Tools.at(chat.tools, "main");
     chat.eye = Chat.eye(mem, from);
     chat.socks.forEach((sock) => Chat.show(chat, sock));
-    const blocks = [...view, Tools.devices(chat.tools), Tools.skills(chat.tools), Tools.at_work(chat.tools), { text: HEAD + text, mark: true }];
+    const blocks = [...view, Tools.linked(), Tools.devices(chat.tools), Tools.skills(chat.tools), Tools.at_work(chat.tools), { text: HEAD + text, mark: true }];
     const model = chat.pick.model;
     const used = (tokens: number) => {
       if (chat.pick.model === model) {
@@ -670,7 +675,7 @@ export namespace Chat {
 
   export function guess(chat: Chat): number {
     const mem = chat.mem;
-    const blocks = [...Memory.view(mem, mem.count, mem.view.parts, mem.talk), Tools.devices(chat.tools), Tools.skills(chat.tools), Tools.at_work(chat.tools)];
+    const blocks = [...Memory.view(mem, mem.count, mem.view.parts, mem.talk), Tools.linked(), Tools.devices(chat.tools), Tools.skills(chat.tools), Tools.at_work(chat.tools)];
     const texts = [Personality.system(Tools.prompt("prompt")), JSON.stringify(Tools.list("main")), ...blocks.map((b) => b.text)];
     return Math.ceil(texts.reduce((n, text) => n + Memory.bytes(text), 0) / TOKEN);
   }
@@ -1713,15 +1718,23 @@ export namespace Main {
   }
 
   export async function personalities(req: Request): Promise<Response> {
-    const read = () => ({ active: Personality.active().id, list: Personality.list(), pronouns: PRONOUN_SETS });
+    const read = () => ({ active: Personality.active().id, list: Personality.list(), links: Personality.links(), pronouns: PRONOUN_SETS });
     if (req.method !== "POST") {
       return Response.json(read());
     }
     const msg: unknown = await req.json().catch(() => null);
-    const [use, id] = [str(get(msg, "use")), str(get(msg, "id"))];
+    const [use, id, link, unlink] = [str(get(msg, "use")), str(get(msg, "id")), get(msg, "link"), get(msg, "unlink")];
     try {
       if (use !== undefined) {
         await Main.become(use);
+      } else if (link !== undefined || unlink !== undefined) {
+        const [from, to] = [text_of(get(link ?? unlink, "from")), text_of(get(link ?? unlink, "to"))];
+        if (link !== undefined) {
+          Personality.link(from, to, str(get(link, "since")) || null);
+        } else {
+          Personality.unlink(from, to);
+        }
+        Chat.links(Main.chat);
       } else {
         const p = { name: text_of(get(msg, "name")), pronouns: text_of(get(msg, "pronouns")), text: text_of(get(msg, "text")) };
         Personality.save(id === undefined ? p : { ...p, id });

@@ -81,7 +81,7 @@ Use
 - **Web:** open the server's address. Install it as an app from your browser to get notifications when Unii replies.
 - **Terminal:** `unii [url]`. `/help` lists its commands; `/import` brings in this computer's Claude Code and Codex sessions. Without a url it uses `$UNII_URL`, else the last one, else http://127.0.0.1:8788. The terminal and devices keep their server and sign-in in `~/.config/unii`.
 - **Conversation mode:** the switch next to "fold all" (`/mode` in the terminal). From then on, your and Unii's messages stay word for word in Unii's memory, for a real discussion. It costs more per turn and turns itself off when the model's context window fills up.
-- **Personalities:** ☰ › Settings › Personalities adds one: a name, pronouns, and who it is. Each keeps a memory of its own. Switch there, or with `/personality` in the terminal.
+- **Personalities:** ☰ › Settings › Personalities adds one: a name, pronouns, and who it is. Each keeps a memory of its own. Switch there, or with `/personality` in the terminal. Link two there to let one read the other's memory: one way, read-only, from a date if you like.
 - `unii help` lists every command.
 
 From source (Bun): `bun install`, `bun run web`, `bun Cli.ts <command>`, `bun run build` for a single `unii` program.

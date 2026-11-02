@@ -90,6 +90,8 @@ type Hooks = {
 
 export type Memory = Logs & Chosen & Unlogged & Tree & Hooks;
 
+export type Reader = { dir: string; fds: Map<string, number>; count: number; nodes: Map<number, string> };
+
 const NODE  = 512;
 export const JOBS = 64;
 
@@ -267,7 +269,7 @@ export namespace Memory {
     fs.writeSync(fd, buf, 0, SLOT, (stream === "main" ? rec.i : Memory.slot(rec.l ?? 0, rec.i)) * SLOT);
   }
 
-  export function read<S extends Stream>(mem: Memory, stream: S, slot: number): Recs[S] | null {
+  export function read<S extends Stream>(mem: Reader, stream: S, slot: number): Recs[S] | null {
     const rec = Memory.pread(Memory.fd(mem, mem.dir + "/" + stream + ".index"), slot * SLOT, SLOT);
     const day = rec.length < SLOT ? 0 : rec.readUInt32LE(8);
     if (day === 0) {
@@ -277,7 +279,7 @@ export namespace Memory {
     return JSON.parse(line.toString("utf8")) as Recs[S];
   }
 
-  export function fd(mem: Memory, file: string): number {
+  export function fd(mem: Reader, file: string): number {
     const fd = mem.fds.get(file) ?? fs.openSync(file, "r");
     mem.fds.delete(file);
     mem.fds.set(file, fd);
@@ -305,7 +307,7 @@ export namespace Memory {
     }
   }
 
-  export function path(mem: Memory, stream: Stream, day: number): string {
+  export function path(mem: Reader, stream: Stream, day: number): string {
     return mem.dir + "/" + stream + "/" + new Date(day * DAY).toISOString().slice(0, 10) + ".jsonl";
   }
 
@@ -378,7 +380,7 @@ export namespace Memory {
     return who + ": " + root.text + pics.join("");
   }
 
-  export function message(mem: Memory, i: number): Root | null {
+  export function message(mem: Reader, i: number): Root | null {
     return Number.isInteger(i) && i >= 0 && i < mem.count ? Memory.read(mem, "main", i) : null;
   }
 
@@ -512,12 +514,12 @@ export namespace Memory {
     return STORED.test(name) && fs.existsSync(file) ? file : Memory.image_file(mem, name);
   }
 
-  export function image_file(mem: Memory, name: string): string | null {
+  export function image_file(mem: Reader, name: string): string | null {
     const file = mem.dir + IMAGES + name;
     return /^[0-9a-f]{16}\.(png|jpeg|gif|webp)$/.test(name) && fs.existsSync(file) ? file : null;
   }
 
-  export function images(mem: Memory, id: number): Img[] {
+  export function images(mem: Reader, id: number): Img[] {
     const names = (Memory.message(mem, id)?.images ?? []).filter((name) => Memory.image_file(mem, name) !== null);
     return names.map((name) => {
       const fit = fs.existsSync(mem.dir + IMAGES + name + ".jpg");
@@ -530,7 +532,7 @@ export namespace Memory {
     return mem.nodes.has(Memory.slot(l, i));
   }
 
-  export function node(mem: Memory, part: Part): string | null {
+  export function node(mem: Reader, part: Part): string | null {
     const slot = Memory.slot(part.l, part.i);
     return mem.nodes.get(slot) ?? Memory.read(mem, "tree", slot)?.text ?? null;
   }
@@ -1062,13 +1064,58 @@ ${Memory.cut(line)}| ← LIMIT`;
     return mem.count;
   }
 
-  export function part(mem: Memory, id: number, n: number): Part | null {
+  export function part(mem: Reader, id: number, n: number): Part | null {
     const l = Math.log2(n);
     const ok = Number.isInteger(id) && Number.isInteger(l) && id >= 0 && id % n === 0 && id + n <= mem.count;
     return ok ? { l, i: id / n } : null;
   }
 
-  export function zoom(mem: Memory, id: number, n: number, at: number): string {
+  // another chat's memory, its files opened to read only
+  export function reader(dir: string): Reader | null {
+    const index = dir + "/main.index";
+    if (!fs.existsSync(index)) {
+      return null;
+    }
+    const mem: Reader = { dir, fds: new Map(), count: Math.floor(fs.statSync(index).size / SLOT), nodes: new Map() };
+    while (mem.count > 0 && Memory.message(mem, mem.count - 1)?.more) {
+      mem.count -= 1;
+    }
+    return mem;
+  }
+
+  export function close(mem: Reader): void {
+    mem.fds.forEach((fd) => fs.closeSync(fd));
+    mem.fds.clear();
+  }
+
+  export function since(mem: Reader, date: string): number {
+    let [a, z] = [0, mem.count];
+    while (a < z) {
+      const m = (a + z) >> 1;
+      [a, z] = (Memory.message(mem, m)?.date ?? "") < date ? [m + 1, z] : [a, m];
+    }
+    return a;
+  }
+
+  // the fewest whole lines of the tree that cover messages from to count
+  export function outline(mem: Reader, from: number): Part[] {
+    const out: Part[] = [];
+    for (let id = from; id < mem.count;) {
+      let l = 0;
+      while (id % 2 ** (l + 1) === 0 && id + 2 ** (l + 1) <= mem.count) {
+        l++;
+      }
+      out.push({ l, i: id / 2 ** l });
+      id += 2 ** l;
+    }
+    return out;
+  }
+
+  export function outline_line(mem: Reader, part: Part): string {
+    return Memory.line(part, Memory.node(mem, part) ?? WAIT);
+  }
+
+  export function zoom(mem: Reader, id: number, n: number, at: number): string {
     const part = Memory.part(mem, id, n);
     const root = n === 1 ? Memory.message(mem, id) : null;
     if (part === null) {
@@ -1082,7 +1129,7 @@ ${Memory.cut(line)}| ← LIMIT`;
     return Memory.halves(part).map((half) => Memory.line(half, Memory.node(mem, half) ?? WAIT)).join("\n");
   }
 
-  export function date(mem: Memory, id: number): string {
+  export function date(mem: Reader, id: number): string {
     const root = Memory.message(mem, id);
     return root === null ? "No message " + id + "." : new Date(root.date).toLocaleString("sv-SE");
   }

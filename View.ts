@@ -175,7 +175,9 @@ export type Prompts = Record<"prompt" | "compact", { text: string; def: string }
 
 export type Persona = { id: string; name: string; pronouns: string; text: string };
 
-export type Personalities = { active: string; list: Persona[]; pronouns: string[]; error?: string };
+type Linked = { from: string; to: string; since: string | null };
+
+export type Personalities = { active: string; list: Persona[]; links: Linked[]; pronouns: string[]; error?: string };
 
 export const MAIN = "UniiChat";
 
