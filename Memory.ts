@@ -99,7 +99,6 @@ const LOGGED = 60e3;
 
 const FAILED = new Map<string, number>();
 const TRIES = 5;
-const VIEW_HIGH = 128000;
 
 const TALK_SHARE_OF_WINDOW = 3 / 4;
 const BLOCK = 4;
@@ -148,7 +147,7 @@ export namespace Memory {
   export function load(dir: string, share: Memory["share"], acted: Memory["acted"] = () => {}): Memory {
     const mem: Memory = {
       dir, fds: new Map(), count: 0, open: 0, pick: null, goal: null, off: [], talk: null, talked: new Map(), used: null, used_at: 0, work: [], timers: [], queue: [], tells: {}, nodes: new Map(), agents: new Map(), ready: [[], []], ends: { main: [0, 0], tree: [0, 0] },
-      view: { parts: [], size: 0, batch: false, high: VIEW_HIGH }, seen: { parts: [], size: 0, batch: false, high: config.COMPACTOR_CONTEXT },
+      view: { parts: [], size: 0, batch: false, high: config.VIEW }, seen: { parts: [], size: 0, batch: false, high: config.COMPACTOR_CONTEXT },
       busy: new Map(), sides: new Map(), calls: new Map(), hold: [null, "paused"], done: false, wait: new Set(), share, acted, again: null,
     };
     const saved = Memory.saved(dir);
@@ -424,7 +423,7 @@ export namespace Memory {
       const root = Memory.at(mem, k - 1);
       size += root.size;
       pics += root.images?.length ?? 0;
-      if (k < mem.count && (size > VIEW_HIGH || pics > PICS)) {
+      if (k < mem.count && (size > config.VIEW || pics > PICS)) {
         return k;
       }
     }
@@ -808,7 +807,7 @@ ${Memory.cut(line)}| ← LIMIT`;
     const gone: Part[] = [];
     let changed = false;
     const sides = [0, 1].filter((side) => mem.hold[side] === null).map((side) => Memory.first(mem, 0, side));
-    mem.seen.high = config.COMPACTOR_CONTEXT;
+    [mem.view.high, mem.seen.high] = [config.VIEW, config.COMPACTOR_CONTEXT];
     Memory.reach(mem, mem.view, mem.count);
     Memory.reach(mem, mem.seen, Math.min(mem.count, ...sides));
     for (const view of [mem.view, mem.seen]) {
@@ -1033,7 +1032,7 @@ ${Memory.cut(line)}| ← LIMIT`;
 
   export function talk_room(window: number): number {
     const window_bytes = window * TOKEN;
-    return window_bytes * TALK_SHARE_OF_WINDOW - VIEW_HIGH;
+    return window_bytes * TALK_SHARE_OF_WINDOW - config.VIEW;
   }
 
   export function talk_size(mem: Memory, end = mem.count, from = mem.talk ?? end): number {

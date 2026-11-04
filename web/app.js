@@ -3301,6 +3301,7 @@ var SETTING = {
   pick: ["Default model", "What a chat runs on until it picks another."],
   compactor: ["Compactor model", "What writes the memory's summaries. Sonnet medium summarizes more faithfully than Haiku, using more of a plan's limits."],
   compactor_context: ["Compactor context", "How much of the chat each summary sees, in KB (1 to 128). More context lets it copy more into a summary that its message doesn't say. New summaries only."],
+  view: ["Memory view", "How much of its memory the agent sees each turn, in KB (16 to 2048), about 250 to 330 tokens a KB. More shows more detail without zooming, and makes every turn bigger."],
   agents: ["Subagent model", "What subagents run on."],
   site: ["Site", "The server's address, for sign-in links and the installer."],
   apple: ["iOS App ID", "The app's team and bundle ID, whose sign-in links it opens."],
@@ -3314,7 +3315,7 @@ var KEY = {
 var VENDOR_KEY = { "claude-api": "anthropic", "openai-api": "openai" };
 var PICKS = ["pick", "compactor", "agents"];
 var GROUPS = [
-  ["Models", ["vendors", "models", "pick", "compactor", "compactor_context", "agents"]],
+  ["Models", ["vendors", "models", "pick", "compactor", "compactor_context", "view", "agents"]],
   ["Server", ["site", "apple", "apns"]]
 ];
 function settings_html(page) {
@@ -3368,8 +3369,10 @@ function control_html(r) {
     case "agents": {
       return `<input type="hidden" name="${r.key}" value="${esc(r.value)}"><div class="four"></div>`;
     }
-    case "compactor_context": {
-      return `<input id="set-${r.key}" name="${r.key}" type="number" min="1" max="128" step="1" inputmode="numeric" value="${esc(r.value)}" placeholder="${esc(r.def)}">`;
+    case "compactor_context":
+    case "view": {
+      const [low, high] = r.key === "view" ? [16, 2048] : [1, 128];
+      return `<input id="set-${r.key}" name="${r.key}" type="number" min="${low}" max="${high}" step="1" inputmode="numeric" value="${esc(r.value)}" placeholder="${esc(r.def)}">`;
     }
   }
   return `<input id="set-${r.key}" name="${r.key}" value="${esc(r.value)}" placeholder="${esc(r.def)}" spellcheck="false" autocapitalize="off">`;

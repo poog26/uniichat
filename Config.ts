@@ -18,6 +18,7 @@ type Made = {
   pick      : Pick;
   compactor : Pick;
   context   : number;
+  view      : number;
   agents    : Pick | null;
   after     : string;
 };
@@ -45,6 +46,7 @@ export const SETTINGS: Setting[] = [
   { key: "pick",      def: "claude-api:sonnet-5.5:medium:slow", apply: "now",     server_only: null },
   { key: "compactor", def: "claude-api:sonnet-5.5:medium:slow", apply: "now",     server_only: null },
   { key: "compactor_context", def: "4",                         apply: "now",     server_only: null },
+  { key: "view",      def: "128",                               apply: "now",     server_only: null },
   { key: "agents",    def: "",                                  apply: "now",     server_only: null },
   { key: "site",      def: "http://127.0.0.1:8788",             apply: "restart", server_only: null },
   { key: "apple",     def: "",                                  apply: "restart", server_only: null },
@@ -102,6 +104,7 @@ export let   PICK       = MADE.pick;
 
 export let   COMPACTOR  = MADE.compactor;
 export let   COMPACTOR_CONTEXT = MADE.context;
+export let   VIEW      = MADE.view;
 export let   AGENTS     = MADE.agents;
 
 export const APPLE      = config_value(FILE, "apple");
@@ -291,16 +294,17 @@ export function config_make(file: Record<string, unknown>): Made {
     offer,
     pick      : config_run("pick", config_value(file, "pick"), offer),
     compactor : config_run("compactor", config_value(file, "compactor"), offer),
-    context   : config_context(config_value(file, "compactor_context")),
+    context   : config_kb("compactor_context", config_value(file, "compactor_context"), 1, 128),
+    view      : config_kb("view", config_value(file, "view"), 16, 2048),
     agents    : agents ? config_run("agents", agents, offer) : null,
     after     : config_value(file, "after"),
   };
 }
 
-function config_context(text: string): number {
+function config_kb(key: string, text: string, low: number, high: number): number {
   const kb = Number(text.trim());
-  if (!/^\d+$/.test(text.trim()) || kb < 1 || kb > 128) {
-    throw new Error("config: compactor_context is no whole number of KB from 1 to 128: " + text);
+  if (!/^\d+$/.test(text.trim()) || kb < low || kb > high) {
+    throw new Error("config: " + key + " is no whole number of KB from " + low + " to " + high + ": " + text);
   }
   return kb * 1000;
 }
@@ -443,6 +447,7 @@ export function config_reload(): void {
   PICK = made.pick;
   COMPACTOR = made.compactor;
   COMPACTOR_CONTEXT = made.context;
+  VIEW = made.view;
   AGENTS = made.agents;
   AFTER = made.after;
   Object.assign(KEYS, keys);
